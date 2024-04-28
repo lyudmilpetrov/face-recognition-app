@@ -57,17 +57,21 @@ function App() {
   };
 
   return (
-    <div className="app-container">
-      <button onClick={compareFaces}>Compare Faces</button>
-      <div className="recognition-container">
+    <div className="app-container mx-auto mt-5">
+      <div className="flex justify-around mb-4">
+        <button className="btn blue" onClick={compareFaces}>
+          Compare Faces
+        </button>
+      </div>
+
+      <div className="recognition-container mb-8 p-4 shadow-lg rounded bg-white">
         <button
-          onClick={() =>
-            handleStop(faceRecognitionRef1, stopped1, setStopped1, setInfo1)
-          }
+          className={`px-4 py-2 rounded ${stopped1 ? 'bg-red-500' : 'bg-blue-500'} text-white`}
+          onClick={() => handleStop(faceRecognitionRef1, stopped1, setStopped1, setInfo1)}
         >
           {!stopped1 ? "Stop" : "Start"} Recognition 1
         </button>
-        <button onClick={() => handleDownloadImage(faceRecognitionRef1)}>
+        <button className="px-4 py-2 ml-2 rounded bg-green-500 text-white" onClick={() => handleDownloadImage(faceRecognitionRef1)}>
           Download Image 1
         </button>
         <FaceRecognitionBlaze
@@ -80,15 +84,14 @@ function App() {
         />
       </div>
 
-      <div className="recognition-container" style={{ marginTop: "200px" }}>
+      <div className="recognition-container mt-8 p-4 shadow-lg rounded bg-white">
         <button
-          onClick={() =>
-            handleStop(faceRecognitionRef2, stopped2, setStopped2, setInfo2)
-          }
+          className={`px-4 py-2 rounded ${stopped2 ? 'bg-red-500' : 'bg-blue-500'} text-white`}
+          onClick={() => handleStop(faceRecognitionRef2, stopped2, setStopped2, setInfo2)}
         >
           {!stopped2 ? "Stop" : "Start"} Recognition 2
         </button>
-        <button onClick={() => handleDownloadImage(faceRecognitionRef2)}>
+        <button className="px-4 py-2 ml-2 rounded bg-green-500 text-white" onClick={() => handleDownloadImage(faceRecognitionRef2)}>
           Download Image 2
         </button>
         <FaceRecognitionBlaze
@@ -97,7 +100,7 @@ function App() {
           canvasId="canvas2"
           width={640}
           height={480}
-          frameColor="red" // Different color to differentiate
+          frameColor="red"
         />
       </div>
     </div>
