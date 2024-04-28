@@ -74,12 +74,18 @@ const FaceRecognitionMesh = forwardRef(
       const ctx = canvasRef.current.getContext("2d");
       // Clear the canvas
       ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
-      
+
       // Draw the video frame onto the canvas
       if (videoRef.current) {
-        ctx.drawImage(videoRef.current, 0, 0, canvasRef.current.width, canvasRef.current.height);
+        ctx.drawImage(
+          videoRef.current,
+          0,
+          0,
+          canvasRef.current.width,
+          canvasRef.current.height
+        );
       }
-    
+
       // Draw the mesh
       predictions.forEach(async (prediction) => {
         const keypoints = await prediction.scaledMesh.data();
@@ -95,7 +101,7 @@ const FaceRecognitionMesh = forwardRef(
         });
       });
     };
-    
+
     const stopFaceRecognition = () => {
       if (videoRef.current.srcObject) {
         const tracks = videoRef.current.srcObject.getTracks();
@@ -135,7 +141,7 @@ const FaceRecognitionMesh = forwardRef(
     }, []);
 
     return (
-      <div>
+      <>
         <video
           ref={videoRef}
           id={videoId}
@@ -143,16 +149,16 @@ const FaceRecognitionMesh = forwardRef(
           height={height}
           autoPlay
           muted
-          style={{ position: "absolute" }}
+          // style={{ position: "absolute" }}
         />
         <canvas
           ref={canvasRef}
           id={canvasId}
           width={width}
           height={height}
-          style={{ position: "absolute" }}
+          // style={{ position: "absolute" }}
         />
-      </div>
+      </>
     );
   }
 );

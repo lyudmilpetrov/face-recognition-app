@@ -57,54 +57,72 @@ function App() {
   };
 
   return (
-    <div className="app-container mx-auto mt-5">
-      <div className="flex justify-around mb-4">
-        <button className="btn blue" onClick={compareFaces}>
+    <div className="mx-auto mt-5 space-y-8">
+      <div className="flex flex-col items-center m-10">
+        <button
+          className="px-4 py-2 rounded bg-orange-500"
+          onClick={compareFaces}
+        >
           Compare Faces
         </button>
       </div>
-
-      <div className="recognition-container mb-8 p-4 shadow-lg rounded bg-white">
-        <button
-          className={`px-4 py-2 rounded ${stopped1 ? 'bg-red-500' : 'bg-blue-500'} text-white`}
-          onClick={() => handleStop(faceRecognitionRef1, stopped1, setStopped1, setInfo1)}
-        >
-          {!stopped1 ? "Stop" : "Start"} Recognition 1
-        </button>
-        <button className="px-4 py-2 ml-2 rounded bg-green-500 text-white" onClick={() => handleDownloadImage(faceRecognitionRef1)}>
-          Download Image 1
-        </button>
-        <FaceRecognitionBlaze
-          ref={faceRecognitionRef1}
-          videoId="video1"
-          canvasId="canvas1"
-          width={640}
-          height={480}
-          frameColor="aqua"
-        />
+      <div className="flex flex-col items-center m-10">
+        <div className="mt-8 p-4 shadow-lg rounded bg-white">
+          <button
+            className={`px-4 py-2 rounded ${
+              stopped1 ? "bg-red-500" : "bg-blue-500"
+            } text-white`}
+            onClick={() =>
+              handleStop(faceRecognitionRef1, stopped1, setStopped1, setInfo1)
+            }
+          >
+            {!stopped1 ? "Stop" : "Start"} Recognition 1
+          </button>
+          <button
+            className="px-4 py-2 ml-2 rounded bg-green-500 text-white"
+            onClick={() => handleDownloadImage(faceRecognitionRef1)}
+          >
+            Download Image 1
+          </button>
+          <FaceRecognitionBlaze
+            ref={faceRecognitionRef1}
+            videoId="video1"
+            canvasId="canvas1"
+            width={640}
+            height={480}
+            frameColor="aqua"
+          />
+        </div>
       </div>
-
-      <div className="recognition-container mt-8 p-4 shadow-lg rounded bg-white">
-        <button
-          className={`px-4 py-2 rounded ${stopped2 ? 'bg-red-500' : 'bg-blue-500'} text-white`}
-          onClick={() => handleStop(faceRecognitionRef2, stopped2, setStopped2, setInfo2)}
-        >
-          {!stopped2 ? "Stop" : "Start"} Recognition 2
-        </button>
-        <button className="px-4 py-2 ml-2 rounded bg-green-500 text-white" onClick={() => handleDownloadImage(faceRecognitionRef2)}>
-          Download Image 2
-        </button>
-        <FaceRecognitionBlaze
-          ref={faceRecognitionRef2}
-          videoId="video2"
-          canvasId="canvas2"
-          width={640}
-          height={480}
-          frameColor="red"
-        />
+      <div className="flex flex-col items-center m-10">
+        <div className="mt-8 p-4 shadow-lg rounded bg-white">
+          <button
+            className={`px-4 py-2 rounded ${
+              stopped2 ? "bg-red-500" : "bg-blue-500"
+            } text-white`}
+            onClick={() =>
+              handleStop(faceRecognitionRef2, stopped2, setStopped2, setInfo2)
+            }
+          >
+            {!stopped2 ? "Stop" : "Start"} Recognition 2
+          </button>
+          <button
+            className="px-4 py-2 ml-2 rounded bg-green-500 text-white"
+            onClick={() => handleDownloadImage(faceRecognitionRef2)}
+          >
+            Download Image 2
+          </button>
+          <FaceRecognitionBlaze
+            ref={faceRecognitionRef2}
+            videoId="video2"
+            canvasId="canvas2"
+            width={640}
+            height={480}
+            frameColor="red"
+          />
+        </div>
       </div>
     </div>
   );
 }
-
 export default App;
