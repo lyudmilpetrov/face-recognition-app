@@ -1,7 +1,8 @@
 import logo from "./logo.svg";
 import "./App.css";
 import React, { useRef, useState } from "react";
-import FaceRecognition from "./Components/FaceRecognition";
+import FaceRecognitionMesh from "./Components/FaceRecognitionMesh";
+import FaceRecognitionBlaze from "./Components/FaceRecognitionBlaze";
 function App() {
   const faceRecognitionRef = useRef();
   const [stopped, setStopped] = useState(false);
@@ -18,19 +19,33 @@ function App() {
       }
     }
   };
+  const handleDownloadImage = () => {
+    if (faceRecognitionRef.current) {
+      faceRecognitionRef.current.downloadImage();
+    }
+  };
   return (
     <>
       <button onClick={handleStop}>
         {!stopped ? "Stop" : "Start"} Recognition
       </button>
+      <button onClick={handleDownloadImage}>Download Image</button>
       <br />
-      <FaceRecognition
+      {/* <FaceRecognitionMesh
         ref={faceRecognitionRef}
         videoId="video"
         canvasId="canvas"
         width={640}
         height={480}
         meshColor="aqua"
+      /> */}
+      <FaceRecognitionBlaze
+        ref={faceRecognitionRef}
+        videoId="video"
+        canvasId="canvas"
+        width={640}
+        height={480}
+        frameColor="aqua"
       />
     </>
   );
