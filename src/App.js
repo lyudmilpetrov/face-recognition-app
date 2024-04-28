@@ -1,25 +1,38 @@
-import logo from './logo.svg';
-import './App.css';
-import FaceRecognition from './Components/FaceRecognition';
+import logo from "./logo.svg";
+import "./App.css";
+import React, { useRef, useState } from "react";
+import FaceRecognition from "./Components/FaceRecognition";
 function App() {
+  const faceRecognitionRef = useRef();
+  const [stopped, setStopped] = useState(false);
+  const [info, setInfo] = useState(null); // [predictions, setPredictions
+  const handleStop = () => {
+    if (faceRecognitionRef.current) {
+      if (stopped === false) {
+        const info = faceRecognitionRef.current.stopFaceRecognition();
+        setInfo(info);
+        setStopped(true);
+      } else {
+        faceRecognitionRef.current.startFaceRecognition();
+        setStopped(false);
+      }
+    }
+  };
   return (
-    <div className="App">
-      {/* <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header> */}
-      <FaceRecognition />
-    </div>
+    <>
+      <button onClick={handleStop}>
+        {!stopped ? "Stop" : "Start"} Recognition
+      </button>
+      <br />
+      <FaceRecognition
+        ref={faceRecognitionRef}
+        videoId="video"
+        canvasId="canvas"
+        width={640}
+        height={480}
+        meshColor="aqua"
+      />
+    </>
   );
 }
 
