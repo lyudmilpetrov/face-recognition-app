@@ -80,10 +80,12 @@ This section has moved here: [https://facebook.github.io/create-react-app/docs/t
   // ... other scripts
   "predeploy": "npm run build",
   "deploy": "gh-pages -d build"
-  4) Setup GitHub Pages
+    }
+4) Setup GitHub Pages
     Go to your GitHub repository on the web.
     Navigate to the 'Settings' tab.
     Scroll down to the 'GitHub Pages' section.
     Select the gh-pages branch as your source.
     Save your changes.
-}
+5) Deploy the App
+    `npm run deploy`
