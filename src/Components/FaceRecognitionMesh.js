@@ -9,7 +9,17 @@ import * as tf from "@tensorflow/tfjs";
 import * as facemesh from "@tensorflow-models/facemesh";
 // Mesh gives more detailed information but it is slower
 const FaceRecognitionMesh = forwardRef(
-  ({ videoId, canvasId, onFacesDetected, width, height, meshColor }, ref) => {
+  (
+    {
+      videoId,
+      canvasId,
+      onFacesDetected,
+      meshColor,
+      receivePedictions,
+      setInfo,
+    },
+    ref
+  ) => {
     const videoRef = useRef(null);
     const canvasRef = useRef(null);
     const animationFrameId = useRef();
@@ -23,7 +33,7 @@ const FaceRecognitionMesh = forwardRef(
 
     const setupCamera = async () => {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { width, height },
+        video: { facingMode: "user" },
       });
       videoRef.current.srcObject = stream;
       videoRef.current.addEventListener("loadedmetadata", () => {
@@ -47,6 +57,8 @@ const FaceRecognitionMesh = forwardRef(
           onFacesDetected(predictions);
         }
         drawMesh(predictions);
+        receivePedictions(predictions,videoId);
+        setInfo(predictions);
       }
       animationFrameId.current = requestAnimationFrame(() =>
         detectFaces(model)
@@ -145,18 +157,14 @@ const FaceRecognitionMesh = forwardRef(
         <video
           ref={videoRef}
           id={videoId}
-          width={width}
-          height={height}
           autoPlay
           muted
-          // style={{ position: "absolute" }}
+          style={{ width: "100%", height: "100%", position: "absolute" }}
         />
         <canvas
           ref={canvasRef}
           id={canvasId}
-          width={width}
-          height={height}
-          // style={{ position: "absolute" }}
+          style={{ width: "100%", height: "100%", position: "absolute" }}
         />
       </>
     );

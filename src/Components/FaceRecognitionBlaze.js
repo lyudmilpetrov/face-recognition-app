@@ -9,7 +9,17 @@ import * as tf from "@tensorflow/tfjs";
 import * as blazeface from "@tensorflow-models/blazeface";
 
 const FaceRecognitionBlaze = forwardRef(
-  ({ videoId, canvasId, onFacesDetected, width, height, frameColor }, ref) => {
+  (
+    {
+      videoId,
+      canvasId,
+      onFacesDetected,
+      frameColor,
+      receivePedictions,
+      setInfo,
+    },
+    ref
+  ) => {
     const videoRef = useRef(null);
     const canvasRef = useRef(null);
     const animationFrameId = useRef();
@@ -23,7 +33,7 @@ const FaceRecognitionBlaze = forwardRef(
 
     const setupCamera = async () => {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { width, height },
+        video: { facingMode: "user" },
       });
       videoRef.current.srcObject = stream;
       videoRef.current.addEventListener("loadedmetadata", () => {
@@ -47,6 +57,8 @@ const FaceRecognitionBlaze = forwardRef(
           onFacesDetected(predictions);
         }
         drawFrame(predictions);
+        // receivePedictions(predictions,videoId);
+        // setInfo(predictions);
       }
       animationFrameId.current = requestAnimationFrame(() =>
         detectFaces(model)
@@ -119,18 +131,14 @@ const FaceRecognitionBlaze = forwardRef(
         <video
           ref={videoRef}
           id={videoId}
-          width={width}
-          height={height}
           autoPlay
           muted
-          style={{ position: "absolute" }}
+          style={{ width: "100%", height: "100%", position: "absolute" }}
         />
         <canvas
           ref={canvasRef}
           id={canvasId}
-          width={width}
-          height={height}
-          style={{ position: "sticky" }}
+          style={{ width: "100%", height: "100%", position: "absolute" }}
         />
       </>
     );

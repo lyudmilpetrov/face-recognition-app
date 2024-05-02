@@ -20,6 +20,9 @@ const mainSlice = createSlice({
         set: (state, action) => {
             state[action.target] = action.payload;
         },
+        setTheme: (state, action) => {
+            state.theme = action.payload;
+        },
         setPath: (state, action) => {
             state.path = action.payload;
         },
@@ -43,6 +46,7 @@ const mainSlice = createSlice({
 
 export const {
     set,
+    setTheme,
     setPath,
     setError,
     setMessage,
