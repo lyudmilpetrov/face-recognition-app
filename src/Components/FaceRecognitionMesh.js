@@ -57,8 +57,9 @@ const FaceRecognitionMesh = forwardRef(
           onFacesDetected(predictions);
         }
         drawMesh(predictions);
-        receivePedictions(predictions,videoId);
-        setInfo(predictions);
+        // console.log(predictions);
+        // receivePedictions(predictions,videoId);
+        // setInfo(predictions);
       }
       animationFrameId.current = requestAnimationFrame(() =>
         detectFaces(model)

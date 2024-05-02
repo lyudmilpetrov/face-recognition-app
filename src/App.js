@@ -21,6 +21,7 @@ function App() {
       if (!stopped) {
         const info = ref.current.stopFaceRecognition();
         console.log(info);
+        console.log(JSON.stringify(info));
         setInfo(info);
         setStopped(true);
       } else {
@@ -56,7 +57,7 @@ function App() {
     event.preventDefault();
   };
 
-  const compareFaces = () => {
+  const compareFaces = async () => {
     if (!info1 || !info2) {
       alert(
         "Both detections must be completed before comparing. Please press stop recognition button to get the detection results."
@@ -64,11 +65,12 @@ function App() {
       return;
     }
     // Dummy comparison logic: compares size of bounding boxes
-    const matchPercentage = comparePredictions(info1, info2);
+    // const matchPercentage = comparePredictionsBlaze(info1, info2);
+    const matchPercentage = await comparePredictionsMesh(info1, info2);
     alert(`The faces are ${matchPercentage}% likely to be the same person.`);
   };
 
-  const comparePredictions = (pred1, pred2) => {
+  const comparePredictionsBlaze = (pred1, pred2) => {
     if (pred1.length === 0 || pred2.length === 0) return 0;
 
     // Normalize bounding box sizes by the width and height of the boxes
@@ -113,6 +115,54 @@ function App() {
     ).toFixed(2);
     if (overallSimilarity < 80) return 0;
     return overallSimilarity;
+  };
+  
+  const comparePredictionsMesh = async (pred1, pred2) => {
+    if (!pred1.length || !pred2.length) return 0; // Ensure there are predictions
+
+    // Helper to extract and normalize points data from tensor
+    const extractPoints = async (mesh) => {
+      const tensorData = await mesh.data();
+      const points = [];
+      for (let i = 0; i < tensorData.length; i += 3) {
+        points.push({ x: tensorData[i], y: tensorData[i + 1] }); // Only x, y are needed
+      }
+      return points;
+    };
+
+    const points1 = await extractPoints(pred1[0].scaledMesh);
+    const points2 = await extractPoints(pred2[0].scaledMesh);
+
+    // Ensure both sets of points are retrieved
+    if (!points1.length || !points2.length) return 0;
+
+    // Compute normalization factor based on average distance between first and last points (arbitrary choice)
+    const normalizationFactor =
+      (dist(points1[0], points1[points1.length - 1]) +
+        dist(points2[0], points2[points2.length - 1])) /
+      2;
+
+    const calculateDistance = (points1, points2) => {
+      let totalDistance = 0;
+      points1.forEach((point, index) => {
+        const point2 = points2[index];
+        totalDistance += Math.sqrt(
+          Math.pow(point.x - point2.x, 2) + Math.pow(point.y - point2.y, 2)
+        );
+      });
+      return totalDistance / points1.length;
+    };
+
+    const averageDistance = calculateDistance(points1, points2);
+    const normalizedDistance = averageDistance / normalizationFactor;
+
+    // Convert to a similarity score
+    return Math.max(0, 100 - normalizedDistance * 100); // Adjust the scale factor as needed
+  };
+
+  // Helper function to calculate distance between two points
+  const dist = (p1, p2) => {
+    return Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2));
   };
 
   const mainClasses =
@@ -164,7 +214,7 @@ function App() {
             <div
               style={{ position: "relative", width: "100%", height: "100%" }}
             >
-              <FaceRecognitionBlaze
+              <FaceRecognitionMesh
                 ref={faceRecognitionRef1}
                 videoId="video1" // Ensure these are unique
                 canvasId="canvas1"
@@ -200,7 +250,7 @@ function App() {
               style={{ position: "relative", width: "100%", height: "100%" }}
               className=""
             >
-              <FaceRecognitionBlaze
+              <FaceRecognitionMesh
                 ref={faceRecognitionRef2}
                 videoId="video2" // Ensure these are unique
                 canvasId="canvas2"
