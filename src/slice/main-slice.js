@@ -1,12 +1,32 @@
 import { createSlice } from '@reduxjs/toolkit';
+
+const getInitialTheme = () => {
+    if (typeof window === "undefined") {
+        return "light";
+    }
+    const storedTheme = window.localStorage.getItem("theme");
+    if (storedTheme === "light" || storedTheme === "dark") {
+        return storedTheme;
+    }
+    const prefersDarkMode =
+        window.matchMedia &&
+        window.matchMedia("(prefers-color-scheme: dark)").matches;
+    return prefersDarkMode ? "dark" : "light";
+};
+
 const initialState = {
     path: "",
     error: "",
     message: "",
     signalr: {},
+    theme: getInitialTheme(),
     // need to capture the prefers-color-scheme media query in the store
     // so that it can be used in the theme provider
-    prefersLightMode:  window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? true : false,
+    prefersLightMode: typeof window !== "undefined" &&
+        window.matchMedia &&
+        window.matchMedia("(prefers-color-scheme: light)").matches
+        ? true
+        : false,
     GlobalCallErrors: [],
     constants: {
         drawerWidth: 240,

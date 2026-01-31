@@ -1,8 +1,7 @@
 import "./App.css";
-import React, { useRef, useState } from "react";
-import FaceRecognitionBlaze from "./Components/FaceRecognitionBlaze";
+import React, { useEffect, useRef, useState } from "react";
 import Navbar from "./Components/NavBar";
-import { setTheme, setErrors } from "./slice/main-slice";
+import { setTheme } from "./slice/main-slice";
 import { useDispatch, useSelector } from "react-redux";
 import FaceRecognitionMesh from "./Components/FaceRecognitionMesh";
 
@@ -50,11 +49,9 @@ function App() {
     }
   };
 
-  const handleThemeChange = (event) => {
+  const handleThemeChange = () => {
     const newTheme = theme === "light" ? "dark" : "light";
     dispatch(setTheme(newTheme));
-    event.stopPropagation();
-    event.preventDefault();
   };
 
   const compareFaces = async () => {
@@ -165,34 +162,38 @@ function App() {
     return Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2));
   };
 
-  const mainClasses =
-    theme === "light" ? "bg-gray-100 text-black" : "bg-gray-600 text-white";
+  useEffect(() => {
+    if (typeof window === "undefined" || typeof document === "undefined") {
+      return;
+    }
+    document.documentElement.classList.toggle("dark", theme === "dark");
+    window.localStorage.setItem("theme", theme);
+  }, [theme]);
+
   const buttonClasses =
-    theme === "light"
-      ? "bg-blue-500 hover:bg-blue-700"
-      : "bg-blue-900 hover:bg-blue-800";
+    "rounded bg-indigo-600 px-4 py-2 text-white shadow-sm transition hover:bg-indigo-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 dark:bg-indigo-500 dark:hover:bg-indigo-400";
 
   return (
     <>
-      <div className={`${mainClasses} flex flex-col min-h-screen`}>
+      <div className="flex min-h-screen flex-col bg-slate-50 text-slate-900 dark:bg-slate-900 dark:text-slate-100">
         <Navbar
           title="Face Recognitions Demos"
           handleThemeChange={handleThemeChange}
           theme={theme}
         />
-        <div className="flex flex-col items-center m-1">
+        <div className="flex flex-col items-center px-4 py-3">
           <button
-            className={`px-4 py-2 rounded ${buttonClasses} text-white`}
+            className={buttonClasses}
             onClick={compareFaces}
           >
             Compare Faces
           </button>
         </div>
-        <div className="flex-grow flex flex-row justify-center items-stretch">
-          <div className="flex flex-col justify-center items-center w-1/2">
-            <div className="flex m-2">
+        <div className="flex flex-1 flex-col gap-6 px-4 pb-8 lg:flex-row">
+          <div className="flex w-full flex-col items-center gap-4 lg:w-1/2">
+            <div className="flex w-full flex-col gap-2 sm:flex-row sm:justify-center">
               <button
-                className={`px-4 py-2 rounded ${buttonClasses} text-white`}
+                className={`${buttonClasses} w-full sm:w-auto`}
                 onClick={() =>
                   handleStop(
                     faceRecognitionRef1,
@@ -205,13 +206,14 @@ function App() {
                 {!stopped1 ? "Stop" : "Start"} Recognition 1
               </button>
               <button
-                className={`px-4 py-2 ml-2 rounded ${buttonClasses} text-white`}
+                className={`${buttonClasses} w-full sm:w-auto`}
                 onClick={() => handleDownloadImage(faceRecognitionRef1)}
               >
                 Download Image 1
               </button>
             </div>
             <div
+              className="w-full"
               style={{ position: "relative", width: "100%", height: "100%" }}
             >
               <FaceRecognitionMesh
@@ -224,10 +226,10 @@ function App() {
               />
             </div>
           </div>
-          <div className="flex flex-col justify-center items-center w-1/2">
-            <div className="flex m-2">
+          <div className="flex w-full flex-col items-center gap-4 lg:w-1/2">
+            <div className="flex w-full flex-col gap-2 sm:flex-row sm:justify-center">
               <button
-                className={`px-4 py-2 rounded ${buttonClasses} text-white`}
+                className={`${buttonClasses} w-full sm:w-auto`}
                 onClick={() =>
                   handleStop(
                     faceRecognitionRef2,
@@ -240,15 +242,15 @@ function App() {
                 {!stopped2 ? "Stop" : "Start"} Recognition 2
               </button>
               <button
-                className={`px-4 py-2 ml-2 rounded ${buttonClasses} text-white`}
+                className={`${buttonClasses} w-full sm:w-auto`}
                 onClick={() => handleDownloadImage(faceRecognitionRef2)}
               >
                 Download Image 2
               </button>
             </div>
             <div
+              className="w-full"
               style={{ position: "relative", width: "100%", height: "100%" }}
-              className=""
             >
               <FaceRecognitionMesh
                 ref={faceRecognitionRef2}
