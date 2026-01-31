@@ -174,7 +174,7 @@ function App() {
     "inline-flex items-center justify-center gap-2 rounded-full bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm shadow-indigo-500/30 transition hover:-translate-y-0.5 hover:bg-indigo-500 hover:shadow-indigo-500/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-indigo-500 dark:hover:bg-indigo-400";
 
   const panelClasses =
-    "w-full rounded-2xl border border-slate-200/70 bg-white/80 p-4 shadow-sm shadow-slate-200/70 backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/60 dark:shadow-none";
+    "relative aspect-video w-full overflow-hidden rounded-2xl border border-slate-200/70 bg-white/80 p-4 shadow-sm shadow-slate-200/70 backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/60 dark:shadow-none";
 
   return (
     <>
@@ -227,10 +227,7 @@ function App() {
                 Download Image 1
               </button>
             </div>
-            <div
-              className={panelClasses}
-              style={{ position: "relative" }}
-            >
+            <div className={panelClasses}>
               <FaceRecognitionMesh
                 ref={faceRecognitionRef1}
                 videoId="video1" // Ensure these are unique
@@ -263,10 +260,7 @@ function App() {
                 Download Image 2
               </button>
             </div>
-            <div
-              className={panelClasses}
-              style={{ position: "relative" }}
-            >
+            <div className={panelClasses}>
               <FaceRecognitionMesh
                 ref={faceRecognitionRef2}
                 videoId="video2" // Ensure these are unique

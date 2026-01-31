@@ -133,12 +133,12 @@ const FaceRecognitionBlaze = forwardRef(
           id={videoId}
           autoPlay
           muted
-          style={{ width: "100%", height: "100%", position: "absolute" }}
+          className="absolute inset-0 h-full w-full object-cover"
         />
         <canvas
           ref={canvasRef}
           id={canvasId}
-          style={{ width: "100%", height: "100%", position: "absolute" }}
+          className="absolute inset-0 h-full w-full"
         />
       </>
     );
