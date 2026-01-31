@@ -171,7 +171,10 @@ function App() {
   }, [theme]);
 
   const buttonClasses =
-    "rounded bg-indigo-600 px-4 py-2 text-white shadow-sm transition hover:bg-indigo-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 dark:bg-indigo-500 dark:hover:bg-indigo-400";
+    "inline-flex items-center justify-center gap-2 rounded-full bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm shadow-indigo-500/30 transition hover:-translate-y-0.5 hover:bg-indigo-500 hover:shadow-indigo-500/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-indigo-500 dark:hover:bg-indigo-400";
+
+  const panelClasses =
+    "w-full rounded-2xl border border-slate-200/70 bg-white/80 p-4 shadow-sm shadow-slate-200/70 backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/60 dark:shadow-none";
 
   return (
     <>
@@ -181,7 +184,19 @@ function App() {
           handleThemeChange={handleThemeChange}
           theme={theme}
         />
-        <div className="flex flex-col items-center px-4 py-3">
+        <div className="flex flex-col items-center gap-3 px-4 py-6 text-center">
+          <div className="max-w-3xl space-y-3 text-sm leading-relaxed text-slate-600 dark:text-slate-300">
+            <p>
+              This app is a playground for experimenting with TensorFlow-based
+              face recognition, showing how live video streams are analyzed and
+              translated into detection data in real time.
+            </p>
+            <p>
+              It is intentionally set up for rapid iteration, with the idea of
+              expanding beyond faces into voice recognition and other biometric
+              signals as the next step.
+            </p>
+          </div>
           <button
             className={buttonClasses}
             onClick={compareFaces}
@@ -213,8 +228,8 @@ function App() {
               </button>
             </div>
             <div
-              className="w-full"
-              style={{ position: "relative", width: "100%", height: "100%" }}
+              className={panelClasses}
+              style={{ position: "relative" }}
             >
               <FaceRecognitionMesh
                 ref={faceRecognitionRef1}
@@ -249,8 +264,8 @@ function App() {
               </button>
             </div>
             <div
-              className="w-full"
-              style={{ position: "relative", width: "100%", height: "100%" }}
+              className={panelClasses}
+              style={{ position: "relative" }}
             >
               <FaceRecognitionMesh
                 ref={faceRecognitionRef2}
