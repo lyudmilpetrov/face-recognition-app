@@ -5,7 +5,6 @@ import React, {
   forwardRef,
   useImperativeHandle,
 } from "react";
-import * as tf from "@tensorflow/tfjs";
 import * as blazeface from "@tensorflow-models/blazeface";
 
 const FaceRecognitionBlaze = forwardRef(
@@ -36,11 +35,11 @@ const FaceRecognitionBlaze = forwardRef(
         video: { facingMode: "user" },
       });
       videoRef.current.srcObject = stream;
-      videoRef.current.addEventListener("loadedmetadata", () => {
+      videoRef.current.onloadedmetadata = () => {
         videoRef.current.play();
         canvasRef.current.width = videoRef.current.videoWidth;
         canvasRef.current.height = videoRef.current.videoHeight;
-      });
+      };
     };
 
     const loadModel = async () => {
@@ -115,9 +114,6 @@ const FaceRecognitionBlaze = forwardRef(
     };
 
     useEffect(() => {
-      setupCamera();
-      loadModel();
-
       return () => {
         if (animationFrameId.current) {
           cancelAnimationFrame(animationFrameId.current);
