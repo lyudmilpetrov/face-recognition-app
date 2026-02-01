@@ -6,6 +6,8 @@ import React, {
   useImperativeHandle,
 } from "react";
 import * as tf from "@tensorflow/tfjs";
+import "@tensorflow/tfjs-backend-cpu";
+import "@tensorflow/tfjs-backend-webgl";
 import * as faceLandmarksDetection from "@tensorflow-models/face-landmarks-detection";
 // Mesh gives more detailed information but it is slower
 const FaceRecognitionMesh = forwardRef(
@@ -44,7 +46,17 @@ const FaceRecognitionMesh = forwardRef(
       });
     };
 
+    const initializeTensorflow = async () => {
+      try {
+        await tf.setBackend("webgl");
+      } catch (error) {
+        await tf.setBackend("cpu");
+      }
+      await tf.ready();
+    };
+
     const loadModel = async () => {
+      await initializeTensorflow();
       const model = faceLandmarksDetection.SupportedModels.MediaPipeFaceMesh;
       const detector = await faceLandmarksDetection.createDetector(model, {
         runtime: "tfjs",
