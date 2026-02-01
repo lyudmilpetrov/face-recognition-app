@@ -118,6 +118,24 @@ function App() {
   };
 
   useEffect(() => {
+    const startRecognition = async (ref, setStopped, label) => {
+      if (!ref.current) {
+        return;
+      }
+      try {
+        await ref.current.startFaceRecognition();
+        setStopped(false);
+      } catch (error) {
+        console.error(`Failed to start ${label} recognition`, error);
+        toast.error("Unable to access the camera. Please allow permissions.");
+      }
+    };
+
+    startRecognition(faceRecognitionRef1, setStopped1, "first");
+    startRecognition(faceRecognitionRef2, setStopped2, "second");
+  }, []);
+
+  useEffect(() => {
     if (typeof window === "undefined" || typeof document === "undefined") {
       return;
     }
