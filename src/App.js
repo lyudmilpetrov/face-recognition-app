@@ -63,7 +63,7 @@ function App() {
       return;
     }
     const matchPercentage = await toast.promise(
-      comparePredictionsBlaze(info1, info2),
+      Promise.resolve(comparePredictionsBlaze(info1, info2)),
       {
         loading: "Comparing face frames...",
         success: "Comparison complete.",
@@ -81,7 +81,7 @@ function App() {
   };
 
   const comparePredictionsBlaze = (pred1, pred2) => {
-    if (pred1.length === 0 || pred2.length === 0) return 0;
+    if (!pred1?.length || !pred2?.length) return 0;
 
     // Normalize bounding box sizes by the width and height of the boxes
     const normalizeBox = (box) => {
@@ -118,11 +118,7 @@ function App() {
       Math.sqrt(Math.pow(distanceX, 2) + Math.pow(distanceY, 2)) / maxDistance;
 
     // Combine size and position similarities
-    const overallSimilarity = (
-      sizeSimilarity *
-      positionSimilarity *
-      100
-    ).toFixed(2);
+    const overallSimilarity = sizeSimilarity * positionSimilarity * 100;
     if (overallSimilarity < 80) return 0;
     return overallSimilarity;
   };
