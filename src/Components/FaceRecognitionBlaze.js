@@ -29,7 +29,6 @@ const FaceRecognitionBlaze = forwardRef(
 
     useImperativeHandle(ref, () => ({
       stopFaceRecognition,
-      downloadImage,
       startFaceRecognition,
     }));
 
@@ -115,15 +114,6 @@ const FaceRecognitionBlaze = forwardRef(
     const startFaceRecognition = async () => {
       await setupCamera();
       await loadModel();
-    };
-
-    const downloadImage = () => {
-      const canvas = canvasRef.current;
-      const image = canvas.toDataURL("image/png");
-      const link = document.createElement("a");
-      link.download = "face_recognition_image.png";
-      link.href = image;
-      link.click();
     };
 
     useEffect(() => {

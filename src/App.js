@@ -44,12 +44,6 @@ function App() {
     }
   };
 
-  const handleDownloadImage = (ref) => {
-    if (ref.current) {
-      ref.current.downloadImage();
-    }
-  };
-
   const handleThemeChange = () => {
     const newTheme = theme === "light" ? "dark" : "light";
     dispatch(setTheme(newTheme));
@@ -135,7 +129,7 @@ function App() {
     "inline-flex items-center justify-center gap-2 rounded-full bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm shadow-indigo-500/30 transition hover:-translate-y-0.5 hover:bg-indigo-500 hover:shadow-indigo-500/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-indigo-500 dark:hover:bg-indigo-400";
 
   const panelClasses =
-    "relative aspect-video w-full overflow-hidden rounded-2xl border border-slate-200/70 bg-white/80 p-4 shadow-sm shadow-slate-200/70 backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/60 dark:shadow-none";
+    "relative aspect-[3/4] w-full max-w-md overflow-hidden rounded-2xl border border-slate-200/70 bg-white/80 shadow-sm shadow-slate-200/70 backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/60 dark:shadow-none";
 
   return (
     <>
@@ -182,14 +176,8 @@ function App() {
               >
                 {!stopped1 ? "Stop" : "Start"} Recognition 1
               </button>
-              <button
-                className={`${buttonClasses} w-full sm:w-auto`}
-                onClick={() => handleDownloadImage(faceRecognitionRef1)}
-              >
-                Download Image 1
-              </button>
             </div>
-            <div className={panelClasses}>
+            <div className={`${panelClasses} mx-auto`}>
               <FaceRecognitionBlaze
                 ref={faceRecognitionRef1}
                 videoId="video1" // Ensure these are unique
@@ -215,14 +203,8 @@ function App() {
               >
                 {!stopped2 ? "Stop" : "Start"} Recognition 2
               </button>
-              <button
-                className={`${buttonClasses} w-full sm:w-auto`}
-                onClick={() => handleDownloadImage(faceRecognitionRef2)}
-              >
-                Download Image 2
-              </button>
             </div>
-            <div className={panelClasses}>
+            <div className={`${panelClasses} mx-auto`}>
               <FaceRecognitionBlaze
                 ref={faceRecognitionRef2}
                 videoId="video2" // Ensure these are unique

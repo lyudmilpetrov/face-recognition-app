@@ -30,7 +30,6 @@ const FaceRecognitionMesh = forwardRef(
 
     useImperativeHandle(ref, () => ({
       stopFaceRecognition,
-      downloadImage,
       startFaceRecognition,
     }));
 
@@ -167,15 +166,6 @@ const FaceRecognitionMesh = forwardRef(
         tempCanvas.height
       );
       return tempCanvas.toDataURL("image/png");
-    };
-
-    const downloadImage = () => {
-      const canvas = canvasRef.current;
-      const image = canvas.toDataURL("image/png");
-      const link = document.createElement("a");
-      link.download = "face_recognition_image.png";
-      link.href = image;
-      link.click();
     };
 
     useEffect(() => {
