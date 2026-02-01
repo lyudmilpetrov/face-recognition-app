@@ -6,7 +6,7 @@ import React, {
   useImperativeHandle,
 } from "react";
 import * as tf from "@tensorflow/tfjs";
-import * as facemesh from "@tensorflow-models/facemesh";
+import * as faceLandmarksDetection from "@tensorflow-models/face-landmarks-detection";
 // Mesh gives more detailed information but it is slower
 const FaceRecognitionMesh = forwardRef(
   (
@@ -44,14 +44,19 @@ const FaceRecognitionMesh = forwardRef(
     };
 
     const loadModel = async () => {
-      const model = await facemesh.load();
-      detectFaces(model);
+      const model = faceLandmarksDetection.SupportedModels.MediaPipeFaceMesh;
+      const detector = await faceLandmarksDetection.createDetector(model, {
+        runtime: "tfjs",
+      });
+      detectFaces(detector);
     };
 
-    const detectFaces = async (model) => {
+    const detectFaces = async (detector) => {
       if (videoRef.current && videoRef.current.readyState >= 2) {
         const video = videoRef.current;
-        const predictions = await model.estimateFaces(video, true);
+        const predictions = await detector.estimateFaces(video, {
+          flipHorizontal: true,
+        });
         setCurrentPredictions(predictions);
         if (onFacesDetected) {
           onFacesDetected(predictions);
@@ -62,7 +67,7 @@ const FaceRecognitionMesh = forwardRef(
         // setInfo(predictions);
       }
       animationFrameId.current = requestAnimationFrame(() =>
-        detectFaces(model)
+        detectFaces(detector)
       );
     };
 
@@ -100,12 +105,8 @@ const FaceRecognitionMesh = forwardRef(
       }
 
       // Draw the mesh
-      predictions.forEach(async (prediction) => {
-        const keypoints = await prediction.scaledMesh.data();
-        const points = [];
-        for (let i = 0; i < keypoints.length; i += 3) {
-          points.push([keypoints[i], keypoints[i + 1]]);
-        }
+      predictions.forEach((prediction) => {
+        const points = prediction.keypoints.map(({ x, y }) => [x, y]);
         ctx.fillStyle = meshColor;
         points.forEach(([x, y]) => {
           ctx.beginPath();
