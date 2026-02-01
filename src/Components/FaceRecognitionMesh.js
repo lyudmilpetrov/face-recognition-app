@@ -197,18 +197,18 @@ const FaceRecognitionMesh = forwardRef(
           id={videoId}
           autoPlay
           muted
-          className="absolute inset-0 h-full w-full object-cover"
+          className="absolute inset-0 h-full w-full object-contain"
         />
         <canvas
           ref={canvasRef}
           id={canvasId}
-          className="absolute inset-0 h-full w-full"
+          className="absolute inset-0 h-full w-full object-contain"
         />
         {capturedImage && (
           <img
             src={capturedImage}
             alt="Captured face portrait"
-            className="absolute inset-0 z-10 h-full w-full object-cover"
+            className="absolute inset-0 z-10 h-full w-full object-contain"
           />
         )}
       </>
