@@ -5,6 +5,9 @@ import React, {
   forwardRef,
   useImperativeHandle,
 } from "react";
+import * as tf from "@tensorflow/tfjs";
+import "@tensorflow/tfjs-backend-cpu";
+import "@tensorflow/tfjs-backend-webgl";
 import * as blazeface from "@tensorflow-models/blazeface";
 
 const FaceRecognitionBlaze = forwardRef(
@@ -43,8 +46,18 @@ const FaceRecognitionBlaze = forwardRef(
     };
 
     const loadModel = async () => {
+      await initializeTensorflow();
       const model = await blazeface.load();
       detectFaces(model);
+    };
+
+    const initializeTensorflow = async () => {
+      try {
+        await tf.setBackend("webgl");
+      } catch (error) {
+        await tf.setBackend("cpu");
+      }
+      await tf.ready();
     };
 
     const detectFaces = async (model) => {
