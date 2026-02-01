@@ -1,5 +1,6 @@
 import "./App.css";
 import React, { useEffect, useRef, useState } from "react";
+import { Toaster, toast } from "react-hot-toast";
 import Navbar from "./Components/NavBar";
 import { setTheme } from "./slice/main-slice";
 import { useDispatch, useSelector } from "react-redux";
@@ -56,15 +57,29 @@ function App() {
 
   const compareFaces = async () => {
     if (!info1 || !info2) {
-      alert(
-        "Both detections must be completed before comparing. Please press stop recognition button to get the detection results."
+      toast.error(
+        "Finish both detections first, then press Stop Recognition on each video to capture results."
       );
       return;
     }
     // Dummy comparison logic: compares size of bounding boxes
     // const matchPercentage = comparePredictionsBlaze(info1, info2);
-    const matchPercentage = await comparePredictionsMesh(info1, info2);
-    alert(`The faces are ${matchPercentage}% likely to be the same person.`);
+    const matchPercentage = await toast.promise(
+      comparePredictionsMesh(info1, info2),
+      {
+        loading: "Comparing face landmarks...",
+        success: "Comparison complete.",
+        error: "Comparison failed. Please try again.",
+      }
+    );
+    const roundedMatch = Number(matchPercentage).toFixed(1);
+    const message =
+      matchPercentage >= 80
+        ? `Strong match: ${roundedMatch}% similarity.`
+        : `Low match: ${roundedMatch}% similarity.`;
+    toast(message, {
+      icon: matchPercentage >= 80 ? "✅" : "ℹ️",
+    });
   };
 
   const comparePredictionsBlaze = (pred1, pred2) => {
@@ -179,6 +194,7 @@ function App() {
   return (
     <>
       <div className="flex min-h-screen flex-col bg-slate-50 text-slate-900 dark:bg-slate-900 dark:text-slate-100">
+        <Toaster position="top-right" />
         <Navbar
           title="Face Recognitions Demos"
           handleThemeChange={handleThemeChange}
