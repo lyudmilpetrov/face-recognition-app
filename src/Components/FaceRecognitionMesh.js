@@ -24,6 +24,7 @@ const FaceRecognitionMesh = forwardRef(
     const canvasRef = useRef(null);
     const animationFrameId = useRef();
     const [currentPredictions, setCurrentPredictions] = useState(null);
+    const [capturedImage, setCapturedImage] = useState(null);
 
     useImperativeHandle(ref, () => ({
       stopFaceRecognition,
@@ -117,6 +118,10 @@ const FaceRecognitionMesh = forwardRef(
     };
 
     const stopFaceRecognition = () => {
+      const stillImage = captureFrame();
+      if (stillImage) {
+        setCapturedImage(stillImage);
+      }
       if (videoRef.current.srcObject) {
         const tracks = videoRef.current.srcObject.getTracks();
         tracks.forEach((track) => track.stop());
@@ -129,8 +134,27 @@ const FaceRecognitionMesh = forwardRef(
 
     const startFaceRecognition = async () => {
       // Restart the recognition process
+      setCapturedImage(null);
       await setupCamera();
       await loadModel();
+    };
+
+    const captureFrame = () => {
+      if (!videoRef.current) {
+        return null;
+      }
+      const tempCanvas = document.createElement("canvas");
+      tempCanvas.width = canvasRef.current.width;
+      tempCanvas.height = canvasRef.current.height;
+      const tempCtx = tempCanvas.getContext("2d");
+      tempCtx.drawImage(
+        videoRef.current,
+        0,
+        0,
+        tempCanvas.width,
+        tempCanvas.height
+      );
+      return tempCanvas.toDataURL("image/png");
     };
 
     const downloadImage = () => {
@@ -168,6 +192,13 @@ const FaceRecognitionMesh = forwardRef(
           id={canvasId}
           className="absolute inset-0 h-full w-full"
         />
+        {capturedImage && (
+          <img
+            src={capturedImage}
+            alt="Captured face portrait"
+            className="absolute inset-0 z-10 h-full w-full object-cover"
+          />
+        )}
       </>
     );
   }
