@@ -18,6 +18,7 @@ function App() {
   const [info1, setInfo1] = useState(null);
   const [info2, setInfo2] = useState(null);
   const [voiceTranscript, setVoiceTranscript] = useState("");
+  const finalTranscriptRef = useRef("");
   const [isListening, setIsListening] = useState(false);
 
   const handleStop = (ref, stopped, setStopped, setInfo) => {
@@ -145,11 +146,24 @@ function App() {
     recognition.interimResults = true;
 
     recognition.onresult = (event) => {
-      let transcript = "";
-      for (let i = 0; i < event.results.length; i += 1) {
-        transcript += event.results[i][0].transcript;
+      let interimTranscript = "";
+
+      for (let i = event.resultIndex; i < event.results.length; i += 1) {
+        const resultText = event.results[i][0].transcript;
+        if (event.results[i].isFinal) {
+          finalTranscriptRef.current += `${resultText} `;
+        } else {
+          interimTranscript += resultText;
+        }
       }
-      setVoiceTranscript(transcript.trim());
+
+      const liveTranscript = `${finalTranscriptRef.current}${interimTranscript}`.trim();
+      console.log("[VoiceCapture] transcript update:", {
+        finalTranscript: finalTranscriptRef.current.trim(),
+        interimTranscript: interimTranscript.trim(),
+        liveTranscript,
+      });
+      setVoiceTranscript(liveTranscript);
     };
 
     recognition.onend = () => {
@@ -177,6 +191,8 @@ function App() {
       return;
     }
 
+    finalTranscriptRef.current = "";
+    setVoiceTranscript("");
     speechRecognitionRef.current.start();
     setIsListening(true);
   };
