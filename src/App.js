@@ -156,10 +156,18 @@ function App() {
       setIsListening(false);
     };
 
+    recognition.onerror = () => {
+      setIsListening(false);
+    };
+
     return recognition;
   };
 
   const startVoiceCapture = () => {
+    if (isListening) {
+      return;
+    }
+
     if (!speechRecognitionRef.current) {
       speechRecognitionRef.current = setupSpeechRecognition();
     }
@@ -252,7 +260,11 @@ function App() {
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <h2 className="text-base font-semibold">Voice Capture</h2>
             <div className="flex flex-col gap-2 sm:flex-row">
-              <button className={`${buttonClasses} w-full sm:w-auto`} onClick={startVoiceCapture}>
+              <button
+                className={`${buttonClasses} w-full sm:w-auto`}
+                onClick={startVoiceCapture}
+                disabled={isListening}
+              >
                 Start Voice Capture
               </button>
               <button className={`${buttonClasses} w-full sm:w-auto`} onClick={stopVoiceCapture}>
