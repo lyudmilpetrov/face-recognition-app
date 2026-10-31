@@ -17,8 +17,6 @@ const FaceRecognitionBlaze = forwardRef(
       canvasId,
       onFacesDetected,
       frameColor,
-      receivePedictions,
-      setInfo,
     },
     ref
   ) => {
@@ -53,7 +51,7 @@ const FaceRecognitionBlaze = forwardRef(
     const initializeTensorflow = async () => {
       try {
         await tf.setBackend("webgl");
-      } catch (error) {
+      } catch {
         await tf.setBackend("cpu");
       }
       await tf.ready();

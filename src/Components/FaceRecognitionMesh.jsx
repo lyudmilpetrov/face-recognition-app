@@ -17,8 +17,6 @@ const FaceRecognitionMesh = forwardRef(
       canvasId,
       onFacesDetected,
       meshColor,
-      receivePedictions,
-      setInfo,
     },
     ref
   ) => {
@@ -48,7 +46,7 @@ const FaceRecognitionMesh = forwardRef(
     const initializeTensorflow = async () => {
       try {
         await tf.setBackend("webgl");
-      } catch (error) {
+      } catch {
         await tf.setBackend("cpu");
       }
       await tf.ready();

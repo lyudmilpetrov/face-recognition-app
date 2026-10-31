@@ -5,7 +5,7 @@ const Navbar = ({ title, handleThemeChange, theme }) => {
   const [isOpen, setIsOpen] = useState(false);
 
   const navbarClasses =
-    "bg-white text-slate-900 shadow-sm dark:bg-slate-900 dark:text-slate-100";
+    "bg-white text-slate-900 shadow-xs dark:bg-slate-900 dark:text-slate-100";
 
   const sidebarClasses = `transform top-0 left-0 w-64 ${navbarClasses} h-full fixed overflow-auto ease-in-out transition-all duration-300 z-30 ${
     isOpen ? "translate-x-0" : "-translate-x-full"
@@ -41,7 +41,7 @@ const Navbar = ({ title, handleThemeChange, theme }) => {
           <div className="hidden items-center gap-3 md:flex">
             <a
               href="#"
-              className="rounded px-2 py-1 text-sm font-medium text-slate-600 transition hover:text-slate-900 dark:text-slate-300 dark:hover:text-white"
+              className="rounded-sm px-2 py-1 text-sm font-medium text-slate-600 transition hover:text-slate-900 dark:text-slate-300 dark:hover:text-white"
             >
               In progress
             </a>

@@ -1,5 +1,9 @@
-const CACHE_NAME = "face-recognition-cache-v1";
-const APP_SHELL = ["/", "/index.html", "/manifest.json", "/favicon.ico"];
+const CACHE_NAME = "face-recognition-cache-v2";
+const APP_BASE = new URL("./", self.location.href);
+const INDEX_URL = new URL("index.html", APP_BASE).href;
+const APP_SHELL = ["./", "index.html", "manifest.json", "favicon.ico"].map(
+  (path) => new URL(path, APP_BASE).href
+);
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -49,7 +53,7 @@ self.addEventListener("fetch", (event) => {
 
           return networkResponse;
         })
-        .catch(() => caches.match("/index.html"));
+        .catch(() => caches.match(INDEX_URL));
     })
   );
 });

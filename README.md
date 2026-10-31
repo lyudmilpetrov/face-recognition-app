@@ -1,91 +1,61 @@
-# Getting Started with Create React App
+# Face Recognition App
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+A React app for live face comparison and voice capture, built with Vite and Tailwind CSS.
 
-## Available Scripts
+## Requirements
 
-In the project directory, you can run:
+Use Node.js 22.22.2+, 24.15.0+, or 26+ on the supported even-numbered release lines, and npm.
+Tailwind CSS 4 requires modern browsers: Safari 16.4+, Chrome 111+, or Firefox 128+.
+Camera and speech features require browser support and permission; camera access requires HTTPS or localhost.
 
-### `npm start`
+## Install
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+```sh
+npm ci
+```
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+## Development
 
-### `npm test`
+```sh
+npm run dev
+# or
+npm start
+```
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+Runs the app in development mode and automatically opens Microsoft Edge at the
+actual development server URL (normally [http://localhost:3000/face-recognition-app/](http://localhost:3000/face-recognition-app/)).
+Microsoft Edge must be installed. The browser launcher uses the actual server URL,
+including a different port if port 3000 is already in use.
 
-### `npm run build`
+To disable automatic opening, set `BROWSER=none` in `.env.development.local`.
+The page reloads when source files change.
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+## Validation
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+```sh
+npm run lint
+npm test
+npm run build
+```
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+`npm test` runs the Vitest suite once. Use `npm run test:watch` for watch mode.
+The app tests mock camera/model work and browser speech APIs; checking live detection
+and speech capture also requires a supported browser and camera/microphone access.
 
-### `npm run eject`
+## Production and GitHub Pages
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+`npm run build` creates the production bundle in `build/`.
+`npm run preview` serves that bundle locally.
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+The Vite `base` setting in `vite.config.js` preserves the GitHub Pages path
+`/face-recognition-app/`, including icons, manifest, and service worker registration.
+Update that setting if deploying at a different path.
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+To publish to the configured GitHub repository, run:
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+```sh
+npm run deploy
+```
 
-## Learn More
-
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
-
-To learn React, check out the [React documentation](https://reactjs.org/).
-
-### Code Splitting
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
-
-### Analyzing the Bundle Size
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
-
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
-
-
-### Host on GitHub
-1) `npm install --save-dev gh-pages`
-2) Add Homepage to package.json 
-    - Open your package.json and add a homepage field for your project:
-    `"homepage": "https://lyudmilpetrov.github.io/face-recognition-app"`
-3) Add Deployment Scripts
-    "scripts": {
-  // ... other scripts
-  "predeploy": "npm run build",
-  "deploy": "gh-pages -d build"
-    }
-4) Setup GitHub Pages
-    Go to your GitHub repository on the web.
-    Navigate to the 'Settings' tab.
-    Scroll down to the 'GitHub Pages' section.
-    Select the gh-pages branch as your source.
-    Save your changes.
-5) Deploy the App
-    `npm run deploy`
+This builds the app and publishes `build/` to the `gh-pages` branch. Configure
+GitHub Pages to serve that branch in the repository settings.

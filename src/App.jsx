@@ -111,7 +111,7 @@ function App() {
       try {
         await ref.current.startFaceRecognition();
         setStopped(false);
-      } catch (error) {
+      } catch {
         toast.error("Unable to access the camera. Please allow permissions.");
       }
     };
@@ -204,10 +204,10 @@ function App() {
   };
 
   const buttonClasses =
-    "inline-flex items-center justify-center gap-2 rounded-full bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm shadow-indigo-500/30 transition hover:-translate-y-0.5 hover:bg-indigo-500 hover:shadow-indigo-500/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-indigo-500 dark:hover:bg-indigo-400";
+    "inline-flex items-center justify-center gap-2 rounded-full bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-xs shadow-indigo-500/30 transition hover:-translate-y-0.5 hover:bg-indigo-500 hover:shadow-indigo-500/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-indigo-500 dark:hover:bg-indigo-400";
 
   const panelClasses =
-    "relative aspect-video w-full overflow-hidden rounded-2xl border border-slate-200/70 bg-white/80 shadow-sm shadow-slate-200/70 backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/60 dark:shadow-none";
+    "relative aspect-video w-full overflow-hidden rounded-2xl border border-slate-200/70 bg-white/80 shadow-xs shadow-slate-200/70 backdrop-blur-xs dark:border-slate-700 dark:bg-slate-800/60 dark:shadow-none";
 
   return (
     <div className="flex min-h-screen flex-col bg-slate-50 text-slate-900 dark:bg-slate-900 dark:text-slate-100">
