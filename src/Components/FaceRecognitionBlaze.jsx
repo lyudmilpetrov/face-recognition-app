@@ -1,7 +1,7 @@
 import React, {
   useRef,
   useEffect,
-  useState,
+  useCallback,
   forwardRef,
   useImperativeHandle,
 } from "react";
@@ -9,6 +9,25 @@ import * as tf from "@tensorflow/tfjs";
 import "@tensorflow/tfjs-backend-cpu";
 import "@tensorflow/tfjs-backend-webgl";
 import * as blazeface from "@tensorflow-models/blazeface";
+
+function releaseRecognition(session) {
+  session.cancelled = true;
+  session.stream?.getTracks().forEach((track) => track.stop());
+  session.stream = null;
+  session.video.onloadedmetadata = null;
+  session.video.srcObject = null;
+
+  if (session.animationFrameId !== null) {
+    cancelAnimationFrame(session.animationFrameId);
+    session.animationFrameId = null;
+  }
+
+  // An in-flight estimate still needs its model until it settles.
+  if (!session.estimating) {
+    session.model?.dispose();
+    session.model = null;
+  }
+}
 
 const FaceRecognitionBlaze = forwardRef(
   (
@@ -22,30 +41,56 @@ const FaceRecognitionBlaze = forwardRef(
   ) => {
     const videoRef = useRef(null);
     const canvasRef = useRef(null);
-    const animationFrameId = useRef();
-    const [currentPredictions, setCurrentPredictions] = useState(null);
+    const sessionRef = useRef(null);
+    const predictionsRef = useRef(null);
+
+    const stopFaceRecognition = useCallback(() => {
+      const session = sessionRef.current;
+      sessionRef.current = null;
+      if (session) {
+        releaseRecognition(session);
+      }
+      return predictionsRef.current;
+    }, []);
 
     useImperativeHandle(ref, () => ({
       stopFaceRecognition,
       startFaceRecognition,
     }));
 
-    const setupCamera = async () => {
+    const setupCamera = async (session, canvas) => {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: "user" },
       });
-      videoRef.current.srcObject = stream;
-      videoRef.current.onloadedmetadata = () => {
-        videoRef.current.play();
-        canvasRef.current.width = videoRef.current.videoWidth;
-        canvasRef.current.height = videoRef.current.videoHeight;
+      if (session.cancelled) {
+        stream.getTracks().forEach((track) => track.stop());
+        return;
+      }
+
+      session.stream = stream;
+      const { video } = session;
+      video.onloadedmetadata = () => {
+        if (!session.cancelled) {
+          canvas.width = video.videoWidth;
+          canvas.height = video.videoHeight;
+        }
       };
+      // The muted video element starts playback through its autoPlay attribute.
+      video.srcObject = stream;
     };
 
-    const loadModel = async () => {
+    const loadModel = async (session, canvas) => {
       await initializeTensorflow();
+      if (session.cancelled) {
+        return;
+      }
       const model = await blazeface.load();
-      detectFaces(model);
+      if (session.cancelled) {
+        model.dispose();
+        return;
+      }
+      session.model = model;
+      await detectFaces(session, canvas);
     };
 
     const initializeTensorflow = async () => {
@@ -57,35 +102,53 @@ const FaceRecognitionBlaze = forwardRef(
       await tf.ready();
     };
 
-    const detectFaces = async (model) => {
-      if (videoRef.current && videoRef.current.readyState >= 2) {
-        const video = videoRef.current;
-        const predictions = await model.estimateFaces(video);
-        setCurrentPredictions(predictions);
+    const detectFaces = async (session, canvas) => {
+      if (session.cancelled) {
+        return;
+      }
+      const { video } = session;
+      if (video.readyState >= 2) {
+        let predictions;
+        session.estimating = true;
+        try {
+          predictions = await session.model.estimateFaces(video);
+        } catch (error) {
+          if (session.cancelled) {
+            return;
+          }
+          throw error;
+        } finally {
+          session.estimating = false;
+          if (session.cancelled) {
+            session.model.dispose();
+            session.model = null;
+          }
+        }
+        if (session.cancelled) {
+          return;
+        }
+        predictionsRef.current = predictions;
+        drawFrame(predictions, video, canvas);
         if (onFacesDetected) {
           onFacesDetected(predictions);
         }
-        drawFrame(predictions);
-        // receivePedictions(predictions,videoId);
-        // setInfo(predictions);
       }
-      animationFrameId.current = requestAnimationFrame(() =>
-        detectFaces(model)
-      );
+      if (!session.cancelled) {
+        session.animationFrameId = requestAnimationFrame(() =>
+          detectFaces(session, canvas)
+        );
+      }
     };
 
-    const drawFrame = (predictions) => {
-      const ctx = canvasRef.current.getContext("2d");
-      ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+    const drawFrame = (predictions, video, canvas) => {
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        return;
+      }
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
 
       // Draw the video frame onto the canvas
-      ctx.drawImage(
-        videoRef.current,
-        0,
-        0,
-        canvasRef.current.width,
-        canvasRef.current.height
-      );
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
       // Draw the bounding boxes
       predictions.forEach((prediction) => {
@@ -98,30 +161,38 @@ const FaceRecognitionBlaze = forwardRef(
       });
     };
 
-    const stopFaceRecognition = () => {
-      if (videoRef.current.srcObject) {
-        const tracks = videoRef.current.srcObject.getTracks();
-        tracks.forEach((track) => track.stop());
-      }
-      if (animationFrameId.current) {
-        cancelAnimationFrame(animationFrameId.current);
-      }
-      return currentPredictions;
-    };
-
     const startFaceRecognition = async () => {
-      await setupCamera();
-      await loadModel();
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      if (sessionRef.current || !video || !canvas) {
+        return;
+      }
+
+      const session = {
+        video,
+        stream: null,
+        model: null,
+        animationFrameId: null,
+        cancelled: false,
+        estimating: false,
+      };
+      sessionRef.current = session;
+      try {
+        await setupCamera(session, canvas);
+        if (!session.cancelled) {
+          await loadModel(session, canvas);
+        }
+      } catch (error) {
+        if (!session.cancelled) {
+          stopFaceRecognition();
+          throw error;
+        }
+      }
     };
 
     useEffect(() => {
-      return () => {
-        if (animationFrameId.current) {
-          cancelAnimationFrame(animationFrameId.current);
-        }
-        stopFaceRecognition();
-      };
-    }, []);
+      return stopFaceRecognition;
+    }, [stopFaceRecognition]);
 
     return (
       <>
