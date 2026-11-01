@@ -59,22 +59,61 @@ const FaceRecognitionBlaze = forwardRef(
       const session = sessionRef.current;
       sessionRef.current = null;
       if (session) {
-        // Stop freezes the existing canvas, rather than taking a new photo.
-        // Return only the latest completed estimate from this capture session.
+        // Explicit capture is separate so cleanup/unmount never takes a photo.
+        // Keep returning detections for existing callers; feature comparison
+        // uses the clean pixels returned by captureFrame instead.
         logCapture(
           session.videoId,
-          predictionsRef.current?.length
-            ? "7. Stop: keeping the latest canvas preview and returning the latest completed face detections for comparison."
-            : "7. Stop: no face detections are available for comparison from this session."
+          "7. Stop: stopping live detection and keeping the current preview."
         );
         releaseRecognition(session);
       }
       return predictionsRef.current;
     }, []);
 
+    const captureFrame = useCallback(() => {
+      const session = sessionRef.current;
+      const preview = canvasRef.current;
+      const video = session?.video;
+      if (
+        !session || session.cancelled || !session.stream || !preview ||
+        video.readyState < 2 || video.videoWidth <= 0 || video.videoHeight <= 0
+      ) {
+        logCapture(videoId, "7. Capture skipped: wait for a playable camera frame before stopping.");
+        return null;
+      }
+
+      try {
+        // Read directly from the video before stopping its stream. The detached
+        // canvas contains no drawn boxes and stays unchanged on a later restart.
+        // Its owner keeps it in memory only; no image export or upload occurs.
+        const image = document.createElement("canvas");
+        image.width = video.videoWidth;
+        image.height = video.videoHeight;
+        const imageContext = image.getContext("2d");
+        const previewContext = preview.getContext("2d");
+        if (!imageContext || !previewContext) {
+          logCapture(videoId, "7. Capture skipped: a canvas drawing context is unavailable.");
+          return null;
+        }
+        imageContext.drawImage(video, 0, 0, image.width, image.height);
+
+        // Display exactly the clean still that will be sent to feature extraction.
+        preview.width = image.width;
+        preview.height = image.height;
+        previewContext.drawImage(image, 0, 0, image.width, image.height);
+        logCapture(videoId, "7. Capture: copied a clean camera frame into memory and displayed the same still for facial-feature comparison.");
+        return image;
+      } catch {
+        logCapture(videoId, "7. Capture failed: the camera frame could not be copied. Restart recognition and try again.");
+        return null;
+      }
+    }, [videoId]);
+
     useImperativeHandle(ref, () => ({
       stopFaceRecognition,
       startFaceRecognition,
+      captureFrame,
     }));
 
     const setupCamera = async (session, canvas) => {
@@ -227,8 +266,8 @@ const FaceRecognitionBlaze = forwardRef(
       }
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      // Copy the current video image into the visible canvas. Stop leaves these
-      // pixels in place; there is no image export or upload in this flow.
+      // This canvas is the live preview with boxes. Explicit captureFrame reads
+      // the video into a separate clean canvas for facial-feature extraction.
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
       // BlazeFace provides opposite box corners; canvas needs x/y/width/height.
@@ -298,6 +337,7 @@ const FaceRecognitionBlaze = forwardRef(
           id={videoId}
           autoPlay
           muted
+          playsInline
           className="absolute inset-0 h-full w-full object-contain"
         />
         <canvas

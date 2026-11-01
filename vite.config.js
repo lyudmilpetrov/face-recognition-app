@@ -12,6 +12,9 @@ export default defineConfig({
   build: {
     outDir: "build",
   },
+  worker: {
+    format: "es",
+  },
   test: {
     environment: "jsdom",
     setupFiles: ["./src/setupTests.js"],

@@ -3,9 +3,9 @@ import {
   createVoiceComparisonClient,
   getVoiceErrorMessage,
 } from "../voice/voiceComparisonClient.js";
+import { MAX_AUDIO_BYTES } from "../voice/audio.js";
 
-const MAX_RECORDING_SECONDS = 15;
-const MAX_FILE_BYTES = 20 * 1024 * 1024;
+const CAPTURE_SECONDS = 10;
 const slots = [
   { key: "reference", title: "Reference voice", description: "A recording of the person you know." },
   { key: "test", title: "Test voice", description: "The recording you want to compare." },
@@ -157,7 +157,7 @@ export default function VoiceComparison() {
       replaceRecording(slot, null);
       setCapture({ slot, phase: "recording" });
       setProgress(`Recording ${slot} voice. Speak clearly, then press Stop recording.`);
-      session.timer = setTimeout(() => stopRecording(session), MAX_RECORDING_SECONDS * 1000);
+      session.timer = setTimeout(() => stopRecording(session), CAPTURE_SECONDS * 1000);
     } catch (captureError) {
       discardSession(session);
       if (session.cancelled && sessionRef.current !== session) return;
@@ -176,7 +176,7 @@ export default function VoiceComparison() {
     event.target.value = "";
     if (!file || sessionRef.current || comparingRef.current) return;
     setError("");
-    if (!file.size || file.size > MAX_FILE_BYTES) {
+    if (!file.size || file.size > MAX_AUDIO_BYTES) {
       setError("Choose a non-empty audio file up to 20 MB.");
       return;
     }
@@ -228,7 +228,7 @@ export default function VoiceComparison() {
     <section aria-labelledby={`${id}-heading`} className="rounded-2xl border border-indigo-200 bg-indigo-50 p-4 dark:border-indigo-700 dark:bg-indigo-900/20">
       <h2 id={`${id}-heading`} className="text-base font-semibold">Voice Comparison</h2>
       <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
-        Record or upload two clips of clear speech from one speaker each. Aim for 5–10 seconds per clip (at least 3 seconds). Recording stops automatically after 15 seconds.
+        Record or upload two clips of clear speech from one speaker each. Aim for 5–10 seconds per clip. Recording stops automatically after 10 seconds; uploaded clips must be 3–15 seconds long.
       </p>
       <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
         {slots.map(({ key, title, description }) => {

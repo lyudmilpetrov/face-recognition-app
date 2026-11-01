@@ -58,6 +58,11 @@ function renderRecognition(props = {}) {
   return { ...view, ref };
 }
 
+function setVideoDimensions(video, width = 640, height = 480) {
+  Object.defineProperty(video, "videoWidth", { configurable: true, value: width });
+  Object.defineProperty(video, "videoHeight", { configurable: true, value: height });
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   captureLog = vi.spyOn(console, "log").mockImplementation(() => {});
@@ -119,6 +124,119 @@ test("unmount releases an active stream and cancels an animation frame with ID z
   expect(video.srcObject).toBeNull();
   expect(cancelFrame).toHaveBeenCalledWith(0);
 });
+
+test("captures a clean native-size still before stopping the stream and keeps it separate from later previews", async () => {
+  const camera = cameraStream();
+  const restartedCamera = cameraStream();
+  getUserMedia
+    .mockResolvedValueOnce(camera.stream)
+    .mockResolvedValueOnce(restartedCamera.stream);
+  const { ref, container } = renderRecognition();
+  const video = container.querySelector("video");
+  const preview = container.querySelector("canvas");
+  setVideoDimensions(video);
+  await act(async () => {
+    await ref.current.startFaceRecognition();
+  });
+  context.drawImage.mockClear();
+  const imageContext = { drawImage: vi.fn(), clearRect: vi.fn(), strokeRect: vi.fn() };
+  HTMLCanvasElement.prototype.getContext.mockImplementation(function () {
+    return this === preview ? context : imageContext;
+  });
+
+  let image;
+  act(() => {
+    image = ref.current.captureFrame();
+    ref.current.stopFaceRecognition();
+  });
+
+  expect(image).toBeInstanceOf(HTMLCanvasElement);
+  expect(image).not.toBe(preview);
+  expect(image.isConnected).toBe(false);
+  expect(image.width).toBe(640);
+  expect(image.height).toBe(480);
+  expect(imageContext.drawImage).toHaveBeenCalledExactlyOnceWith(video, 0, 0, 640, 480);
+  expect(imageContext.strokeRect).not.toHaveBeenCalled();
+  expect(context.drawImage).toHaveBeenCalledExactlyOnceWith(image, 0, 0, 640, 480);
+  expect(preview.width).toBe(640);
+  expect(preview.height).toBe(480);
+  expect(imageContext.drawImage.mock.invocationCallOrder[0]).toBeLessThan(
+    camera.stop.mock.invocationCallOrder[0]
+  );
+
+  await act(async () => {
+    await ref.current.startFaceRecognition();
+  });
+
+  expect(imageContext.drawImage).toHaveBeenCalledOnce();
+  expect(imageContext.clearRect).not.toHaveBeenCalled();
+  expect(image.width).toBe(640);
+  expect(image.height).toBe(480);
+  expect(captureLog.mock.calls.flat().every((message) => typeof message === "string")).toBe(true);
+});
+
+test("does not capture before camera startup or after stop", async () => {
+  const camera = cameraStream();
+  getUserMedia.mockResolvedValue(camera.stream);
+  const { ref, container } = renderRecognition();
+  setVideoDimensions(container.querySelector("video"));
+  expect(ref.current.captureFrame()).toBeNull();
+
+  await act(async () => {
+    await ref.current.startFaceRecognition();
+  });
+  act(() => {
+    ref.current.stopFaceRecognition();
+  });
+  context.drawImage.mockClear();
+
+  expect(ref.current.captureFrame()).toBeNull();
+  expect(context.drawImage).not.toHaveBeenCalled();
+});
+
+test.each(["waiting for permission", "video not playable", "zero width", "zero height", "canvas unavailable"])(
+  "does not capture when %s",
+  async (condition) => {
+    const camera = cameraStream();
+    const permission = deferred();
+    getUserMedia.mockReturnValue(permission.promise);
+    const { ref, container } = renderRecognition();
+    const video = container.querySelector("video");
+    setVideoDimensions(video);
+    let start;
+    await act(async () => {
+      start = ref.current.startFaceRecognition();
+    });
+    if (condition !== "waiting for permission") {
+      await act(async () => {
+        permission.resolve(camera.stream);
+        await start;
+      });
+    }
+    if (condition === "video not playable") {
+      vi.spyOn(HTMLMediaElement.prototype, "readyState", "get").mockReturnValue(1);
+    } else if (condition === "zero width") {
+      setVideoDimensions(video, 0, 480);
+    } else if (condition === "zero height") {
+      setVideoDimensions(video, 640, 0);
+    } else if (condition === "canvas unavailable") {
+      HTMLCanvasElement.prototype.getContext.mockReturnValueOnce(null);
+    }
+    context.drawImage.mockClear();
+
+    expect(ref.current.captureFrame()).toBeNull();
+    expect(context.drawImage).not.toHaveBeenCalled();
+    if (condition === "waiting for permission") {
+      act(() => {
+        ref.current.stopFaceRecognition();
+      });
+      await act(async () => {
+        permission.resolve(camera.stream);
+        await start;
+      });
+    }
+  }
+);
 
 test.each(["stop", "unmount"])(
   "releases a camera stream that resolves after %s without starting detection",

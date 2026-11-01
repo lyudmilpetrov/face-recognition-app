@@ -6,13 +6,18 @@ import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import App from "./App";
 import mainReducer from "./slice/main-slice";
 
-const { toastError, toastMessage, toastPromise, startRecognition, stopRecognition } = vi.hoisted(() => ({
+const { toastError, toastMessage, toastPromise, startRecognition, stopRecognition, captureFrame, compareFaceImages, getFaceComparisonErrorMessage } = vi.hoisted(() => ({
   toastError: vi.fn(),
   toastMessage: vi.fn(),
   toastPromise: vi.fn(),
   startRecognition: vi.fn(),
   stopRecognition: vi.fn(),
+  captureFrame: vi.fn(),
+  compareFaceImages: vi.fn(),
+  getFaceComparisonErrorMessage: vi.fn(),
 }));
+
+vi.mock("./services/faceComparison", () => ({ compareFaceImages, getFaceComparisonErrorMessage }));
 
 vi.mock("react-hot-toast", () => ({
   Toaster: () => null,
@@ -31,6 +36,7 @@ vi.mock("./Components/FaceRecognitionBlaze", async () => {
     useImperativeHandle(ref, () => ({
       startFaceRecognition: () => startRecognition(videoId),
       stopFaceRecognition: () => stopRecognition(videoId),
+      captureFrame: () => captureFrame(videoId),
     }));
 
     return <video data-testid={videoId} onError={onRecognitionError} />;
@@ -47,7 +53,7 @@ async function renderApp() {
   });
   const user = userEvent.setup();
 
-  render(
+  const view = render(
     <Provider store={store}>
       <App />
     </Provider>
@@ -56,17 +62,37 @@ async function renderApp() {
   await screen.findByRole("button", { name: "Stop Recognition 1" });
   await screen.findByRole("button", { name: "Stop Recognition 2" });
 
-  return { user, store };
+  return { user, store, ...view };
+}
+
+function deferred() {
+  let resolve;
+  let reject;
+  const promise = new Promise((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise;
+    reject = rejectPromise;
+  });
+  return { promise, resolve, reject };
+}
+
+async function captureBoth(user) {
+  await user.click(screen.getByRole("button", { name: "Stop Recognition 1" }));
+  await user.click(screen.getByRole("button", { name: "Stop Recognition 2" }));
 }
 
 beforeEach(() => {
   vi.clearAllMocks();
   startRecognition.mockReset().mockResolvedValue();
   stopRecognition.mockReset().mockReturnValue(null);
+  captureFrame.mockReset().mockImplementation(() => document.createElement("canvas"));
+  compareFaceImages.mockReset().mockResolvedValue({ distance: 0.4, threshold: 0.6, isMatch: true });
+  getFaceComparisonErrorMessage.mockReset().mockReturnValue("Use a clear image containing exactly one face in each capture.");
   toastPromise.mockImplementation((promise) => promise);
   vi.spyOn(console, "log").mockImplementation(() => {});
+  vi.spyOn(console, "warn").mockImplementation(() => {});
   window.localStorage.clear();
   document.documentElement.classList.remove("dark");
+  window.history.replaceState(null, "", window.location.pathname);
 });
 
 afterEach(() => {
@@ -74,15 +100,20 @@ afterEach(() => {
   document.documentElement.classList.remove("dark");
 });
 
-test("renders both camera panels and the voice capture controls", async () => {
-  await renderApp();
+test("shows separate comparison pages through the sidebar", async () => {
+  const { user } = await renderApp();
 
-  expect(screen.getByText("Face Recognitions Demos")).toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: "Face Comparison" })).toBeInTheDocument();
   expect(screen.getByTestId("video1")).toBeInTheDocument();
   expect(screen.getByTestId("video2")).toBeInTheDocument();
-  expect(screen.getByRole("heading", { name: "Voice Capture" })).toBeInTheDocument();
-  expect(screen.getByText("Status: Idle")).toBeInTheDocument();
-  expect(screen.getByRole("button", { name: "Start Voice Capture" })).toBeEnabled();
+  expect(screen.queryByRole("heading", { name: "Voice Comparison" })).not.toBeInTheDocument();
+  await user.click(screen.getByRole("link", { name: "Voice Comparison" }));
+  await screen.findByRole("button", { name: "Record reference voice" });
+  expect(screen.queryByTestId("video1")).not.toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "Voice Comparison" })).toHaveAttribute("aria-current", "page");
+  expect(screen.getByRole("button", { name: "Record reference voice" })).toBeEnabled();
+  expect(screen.getByRole("button", { name: "Record test voice" })).toBeEnabled();
+  expect(screen.getByRole("button", { name: "Compare Voices" })).toBeDisabled();
 });
 
 test("updates Redux, the document theme, and the saved preference", async () => {
@@ -101,65 +132,162 @@ test("updates Redux, the document theme, and the saved preference", async () => 
   expect(window.localStorage.getItem("theme")).toBe("light");
 });
 
-test("explains that both face detections must finish before comparison", async () => {
+test("sidebar links support navigation and Skip to content preserves the current page", async () => {
+  const { user } = await renderApp();
+  await user.click(screen.getByRole("button", { name: "Open menu" }));
+  expect(screen.getByRole("button", { name: "Close menu" })).toHaveAttribute("aria-expanded", "true");
+  await user.click(screen.getByRole("link", { name: "Voice Translation" }));
+  await screen.findByRole("heading", { name: "Voice Translation", level: 2 });
+  expect(window.location.hash).toBe("#/voice-translation");
+  await user.click(screen.getByRole("link", { name: "Skip to content" }));
+  expect(window.location.hash).toBe("#/voice-translation");
+  expect(screen.getByRole("main")).toHaveFocus();
+  expect(screen.queryByTestId("video1")).not.toBeInTheDocument();
+});
+
+test("requires a stopped still image from both cameras before comparison", async () => {
   const { user } = await renderApp();
 
   await user.click(screen.getByRole("button", { name: "Compare Faces" }));
 
   expect(toastError).toHaveBeenCalledWith(
-    "Finish both detections first, then press Stop Recognition on each video to capture results."
+    "Press Stop Recognition on each camera to capture a still image before comparing."
   );
-  expect(toastPromise).not.toHaveBeenCalled();
+  expect(compareFaceImages).not.toHaveBeenCalled();
 });
 
 test.each([
-  { secondFace: { topLeft: [10, 10], bottomRight: [110, 110] }, expected: "Strong match: 100.0% similarity." },
-  { secondFace: { topLeft: [300, 300], bottomRight: [400, 400] }, expected: "Low match: 0.0% similarity." },
-])("compares stopped face-box geometry and displays $expected", async ({ secondFace, expected }) => {
-  const firstFace = { topLeft: [10, 10], bottomRight: [110, 110] };
-  stopRecognition.mockImplementation((videoId) => [videoId === "video1" ? firstFace : secondFace]);
+  { distance: 0.4, isMatch: true, expected: "Similar facial features" },
+  { distance: 0.8, isMatch: false, expected: "Different facial features" },
+])("compares captured pixels and displays $expected", async ({ distance, isMatch, expected }) => {
+  const firstImage = document.createElement("canvas");
+  const secondImage = document.createElement("canvas");
+  captureFrame.mockImplementation((videoId) => videoId === "video1" ? firstImage : secondImage);
+  compareFaceImages.mockResolvedValue({ distance, isMatch, threshold: 0.6 });
   const { user } = await renderApp();
 
-  await user.click(screen.getByRole("button", { name: "Stop Recognition 1" }));
-  await user.click(screen.getByRole("button", { name: "Stop Recognition 2" }));
+  await captureBoth(user);
   await user.click(screen.getByRole("button", { name: "Compare Faces" }));
 
-  expect(toastMessage).toHaveBeenCalledWith(expected, expect.any(Object));
+  expect(compareFaceImages).toHaveBeenCalledExactlyOnceWith(firstImage, secondImage);
+  expect(captureFrame.mock.invocationCallOrder[0]).toBeLessThan(stopRecognition.mock.invocationCallOrder[0]);
+  expect(screen.getByText(new RegExp(expected))).toHaveTextContent(`Feature distance: ${distance.toFixed(3)}; threshold: 0.600.`);
   expect(toastError).not.toHaveBeenCalled();
-  expect(console.log).toHaveBeenCalledWith(
-    "[FaceComparison] Step 6: Display the frame-geometry result. This score does not establish identity."
-  );
-  // Process explanations must never include captured pixels or prediction data.
-  expect(console.log.mock.calls.every((args) => args.every((value) => typeof value === "string"))).toBe(true);
+  // Console explanations must never include image or descriptor objects.
+  const diagnosticCalls = [...console.log.mock.calls, ...console.warn.mock.calls];
+  expect(diagnosticCalls.every((args) => args.every((value) => typeof value === "string"))).toBe(true);
 });
 
-test("requires a detected face in each stopped capture", async () => {
-  stopRecognition.mockReturnValue([]);
+test("explains a camera frame that is not ready and refuses comparison", async () => {
+  captureFrame.mockReturnValue(null);
   const { user } = await renderApp();
 
-  await user.click(screen.getByRole("button", { name: "Stop Recognition 1" }));
-  await user.click(screen.getByRole("button", { name: "Stop Recognition 2" }));
+  await captureBoth(user);
   await user.click(screen.getByRole("button", { name: "Compare Faces" }));
 
   expect(toastError).toHaveBeenCalledWith(
-    "Finish both detections first, then press Stop Recognition on each video to capture results."
+    "The camera frame is not ready. Start recognition and try capturing again."
   );
-  expect(toastPromise).not.toHaveBeenCalled();
+  expect(compareFaceImages).not.toHaveBeenCalled();
 });
 
 test("restarting a camera invalidates its previous stopped capture", async () => {
-  stopRecognition.mockReturnValue([{ topLeft: [10, 10], bottomRight: [110, 110] }]);
   const { user } = await renderApp();
 
-  await user.click(screen.getByRole("button", { name: "Stop Recognition 1" }));
-  await user.click(screen.getByRole("button", { name: "Stop Recognition 2" }));
+  await captureBoth(user);
   await user.click(screen.getByRole("button", { name: "Start Recognition 1" }));
   await user.click(screen.getByRole("button", { name: "Compare Faces" }));
 
   expect(toastError).toHaveBeenCalledWith(
-    "Finish both detections first, then press Stop Recognition on each video to capture results."
+    "Press Stop Recognition on each camera to capture a still image before comparing."
   );
-  expect(toastPromise).not.toHaveBeenCalled();
+  expect(compareFaceImages).not.toHaveBeenCalled();
+});
+
+test("disables comparison while features are being computed and prevents duplicate calls", async () => {
+  const comparison = deferred();
+  compareFaceImages.mockReturnValue(comparison.promise);
+  const { user } = await renderApp();
+  await captureBoth(user);
+
+  await user.click(screen.getByRole("button", { name: "Compare Faces" }));
+  const pendingButton = screen.getByRole("button", { name: "Comparing facial features..." });
+  expect(pendingButton).toBeDisabled();
+  await user.click(pendingButton);
+  expect(compareFaceImages).toHaveBeenCalledOnce();
+  await act(async () => {
+    comparison.resolve({ distance: 0.4, threshold: 0.6, isMatch: true });
+  });
+  expect(screen.getByRole("button", { name: "Compare Faces" })).toBeEnabled();
+});
+
+test("shows safe comparison errors and permits another attempt", async () => {
+  compareFaceImages.mockRejectedValueOnce(new Error("private model diagnostic"));
+  const { user } = await renderApp();
+  await captureBoth(user);
+
+  await user.click(screen.getByRole("button", { name: "Compare Faces" }));
+
+  expect(getFaceComparisonErrorMessage).toHaveBeenCalledOnce();
+  expect(toastError).toHaveBeenCalledWith("Use a clear image containing exactly one face in each capture.");
+  expect(screen.queryByText(/private model diagnostic/)).not.toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Compare Faces" })).toBeEnabled();
+  await user.click(screen.getByRole("button", { name: "Compare Faces" }));
+  expect(screen.getByText(/Similar facial features/)).toBeInTheDocument();
+});
+
+test.each(["resolve", "reject"])("ignores an obsolete comparison that %s after a camera restarts", async (completion) => {
+  const comparison = deferred();
+  compareFaceImages.mockReturnValue(comparison.promise);
+  const { user } = await renderApp();
+  await captureBoth(user);
+  await user.click(screen.getByRole("button", { name: "Compare Faces" }));
+  await user.click(screen.getByRole("button", { name: "Start Recognition 1" }));
+  // Even replacing the still while inference is pending must not restore the
+  // result for the old pair of images.
+  await user.click(screen.getByRole("button", { name: "Stop Recognition 1" }));
+
+  await act(async () => {
+    if (completion === "resolve") {
+      comparison.resolve({ distance: 0.4, threshold: 0.6, isMatch: true });
+    } else {
+      comparison.reject(new Error("obsolete diagnostic"));
+    }
+  });
+  expect(screen.queryByText(/Similar facial features/)).not.toBeInTheDocument();
+  expect(toastError).not.toHaveBeenCalled();
+  expect(screen.getByRole("button", { name: "Compare Faces" })).toBeEnabled();
+});
+
+test("clears a displayed comparison when a camera restarts", async () => {
+  const { user } = await renderApp();
+  await captureBoth(user);
+  await user.click(screen.getByRole("button", { name: "Compare Faces" }));
+  expect(screen.getByText(/Similar facial features/)).toBeInTheDocument();
+
+  await user.click(screen.getByRole("button", { name: "Start Recognition 1" }));
+
+  expect(screen.queryByText(/Similar facial features/)).not.toBeInTheDocument();
+});
+
+test.each(["resolve", "reject"])("ignores a pending comparison that %s after unmount", async (completion) => {
+  const comparison = deferred();
+  compareFaceImages.mockReturnValue(comparison.promise);
+  const { user, unmount } = await renderApp();
+  await captureBoth(user);
+  await user.click(screen.getByRole("button", { name: "Compare Faces" }));
+  unmount();
+
+  await act(async () => {
+    if (completion === "resolve") {
+      comparison.resolve({ distance: 0.4, threshold: 0.6, isMatch: true });
+    } else {
+      comparison.reject(new Error("obsolete diagnostic"));
+    }
+  });
+
+  expect(toastError).not.toHaveBeenCalled();
+  expect(getFaceComparisonErrorMessage).not.toHaveBeenCalled();
 });
 
 test("handles a camera restart failure and allows retry", async () => {
@@ -205,14 +333,15 @@ test("shows that recognition stopped when a later detection fails", async () => 
   expect(screen.getByRole("button", { name: "Stop Recognition 2" })).toBeEnabled();
 });
 
-test("keeps voice capture idle when speech recognition is unsupported", async () => {
+test("offers an upload alternative when microphone recording is unsupported", async () => {
   const { user } = await renderApp();
 
-  await user.click(screen.getByRole("button", { name: "Start Voice Capture" }));
+  await user.click(screen.getByRole("link", { name: "Voice Comparison" }));
+  await screen.findByRole("button", { name: "Record reference voice" });
 
-  expect(toastError).toHaveBeenCalledWith(
-    "Voice capture is not supported in this browser."
-  );
-  expect(screen.getByText("Status: Idle")).toBeInTheDocument();
-  expect(screen.getByRole("button", { name: "Start Voice Capture" })).toBeEnabled();
+  await user.click(screen.getByRole("button", { name: "Record reference voice" }));
+
+  expect(screen.getByRole("alert")).toHaveTextContent("Microphone recording is unavailable");
+  expect(screen.getByLabelText("Upload reference voice")).toBeEnabled();
+  expect(screen.getByRole("button", { name: "Record reference voice" })).toBeEnabled();
 });

@@ -1,83 +1,61 @@
-const isLocalhost = Boolean(
-  window.location.hostname === "localhost" ||
-    window.location.hostname === "[::1]" ||
-    window.location.hostname.match(
-      /^127(?:\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}$/
-    )
-);
+let scheduled = false;
+let pendingLoad;
+
+function appBase() {
+  const base = new URL(import.meta.env.BASE_URL, window.location.href);
+  return base.origin === window.location.origin ? base : null;
+}
 
 export function register(config) {
-  if (import.meta.env.PROD && "serviceWorker" in navigator) {
-    const publicUrl = new URL(import.meta.env.BASE_URL, window.location.href);
-    if (publicUrl.origin !== window.location.origin) {
-      return;
-    }
+  if (!import.meta.env.PROD || !("serviceWorker" in navigator) || scheduled) return;
+  const base = appBase();
+  if (!base) return;
+  scheduled = true;
 
-    window.addEventListener("load", () => {
-      const swUrl = new URL("service-worker.js", publicUrl).href;
-
-      if (isLocalhost) {
-        checkValidServiceWorker(swUrl, config);
-      } else {
-        registerValidSW(swUrl, config);
-      }
+  const start = () => {
+    pendingLoad = null;
+    navigator.serviceWorker.register(new URL("service-worker.js", base).href, {
+      scope: base.pathname,
+      updateViaCache: "none",
+    }).then((registration) => {
+      const watchInstallation = () => {
+        const worker = registration.installing;
+        if (!worker) return;
+        const onStateChange = () => {
+          if (worker.state !== "installed") return;
+          if (navigator.serviceWorker.controller) config?.onUpdate?.(registration);
+          else config?.onSuccess?.(registration);
+        };
+        worker.addEventListener("statechange", onStateChange);
+        onStateChange();
+      };
+      registration.addEventListener("updatefound", watchInstallation);
+      watchInstallation();
+      if (registration.waiting) config?.onUpdate?.(registration);
+    }).catch(() => {
+      // The app still works normally when service worker registration is blocked.
     });
+  };
+
+  if (document.readyState === "complete") start();
+  else {
+    pendingLoad = start;
+    window.addEventListener("load", start, { once: true });
   }
 }
 
-function registerValidSW(swUrl, config) {
-  navigator.serviceWorker
-    .register(swUrl)
-    .then((registration) => {
-      registration.onupdatefound = () => {
-        const installingWorker = registration.installing;
-        if (!installingWorker) {
-          return;
-        }
-        installingWorker.onstatechange = () => {
-          if (installingWorker.state === "installed") {
-            if (navigator.serviceWorker.controller) {
-              if (config && config.onUpdate) {
-                config.onUpdate(registration);
-              }
-            } else if (config && config.onSuccess) {
-              config.onSuccess(registration);
-            }
-          }
-        };
-      };
-    })
-    .catch(() => {});
-}
-
-function checkValidServiceWorker(swUrl, config) {
-  fetch(swUrl, {
-    headers: { "Service-Worker": "script" },
-  })
-    .then((response) => {
-      const contentType = response.headers.get("content-type");
-      if (
-        response.status === 404 ||
-        (contentType != null && contentType.indexOf("javascript") === -1)
-      ) {
-        navigator.serviceWorker.ready.then((registration) => {
-          registration.unregister().then(() => {
-            window.location.reload();
-          });
-        });
-      } else {
-        registerValidSW(swUrl, config);
-      }
-    })
-    .catch(() => {});
-}
-
-export function unregister() {
-  if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.ready
-      .then((registration) => {
-        registration.unregister();
-      })
-      .catch(() => {});
+export async function unregister() {
+  if (pendingLoad) window.removeEventListener("load", pendingLoad);
+  pendingLoad = null;
+  scheduled = false;
+  if (!("serviceWorker" in navigator)) return;
+  const base = appBase();
+  if (!base) return;
+  try {
+    const registration = await navigator.serviceWorker.getRegistration(base.href);
+    // An ancestor scope can belong to another app on the same origin.
+    if (registration?.scope === base.href) return await registration.unregister();
+  } catch {
+    // A missing or inaccessible registration needs no further cleanup.
   }
 }
