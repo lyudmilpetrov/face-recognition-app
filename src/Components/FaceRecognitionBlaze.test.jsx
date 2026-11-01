@@ -1,5 +1,5 @@
 import React, { createRef, StrictMode, useEffect, useRef } from "react";
-import { act, cleanup, render } from "@testing-library/react";
+import { act, cleanup, fireEvent, render } from "@testing-library/react";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import FaceRecognitionBlaze from "./FaceRecognitionBlaze";
 
@@ -26,6 +26,7 @@ const mediaDevicesDescriptor = Object.getOwnPropertyDescriptor(
 let context;
 let requestFrame;
 let cancelFrame;
+let captureLog;
 
 function deferred() {
   let resolve;
@@ -59,6 +60,7 @@ function renderRecognition(props = {}) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  captureLog = vi.spyOn(console, "log").mockImplementation(() => {});
   Object.defineProperty(navigator, "mediaDevices", {
     configurable: true,
     value: { getUserMedia },
@@ -215,11 +217,12 @@ test("a later animation-frame estimate can reject after stop without stale work 
   const estimation = deferred();
   const camera = cameraStream();
   const onFacesDetected = vi.fn();
+  const onRecognitionError = vi.fn();
   getUserMedia.mockResolvedValue(camera.stream);
   estimateFaces
     .mockResolvedValueOnce([])
     .mockReturnValueOnce(estimation.promise);
-  const { ref } = renderRecognition({ onFacesDetected });
+  const { ref } = renderRecognition({ onFacesDetected, onRecognitionError });
   await act(async () => {
     await ref.current.startFaceRecognition();
   });
@@ -241,8 +244,172 @@ test("a later animation-frame estimate can reject after stop without stale work 
 
   expect(camera.stop).toHaveBeenCalledOnce();
   expect(onFacesDetected).not.toHaveBeenCalled();
+  expect(onRecognitionError).not.toHaveBeenCalled();
   expect(context.drawImage).not.toHaveBeenCalled();
   expect(requestFrame).not.toHaveBeenCalled();
+});
+
+test("logs capture stages and face-count changes without repeating every frame or exposing predictions", async () => {
+  const camera = cameraStream();
+  const predictions = [{
+    topLeft: [12345, 23456],
+    bottomRight: [34567, 45678],
+    privateMarker: "sensitive-face-payload",
+  }];
+  getUserMedia.mockResolvedValue(camera.stream);
+  estimateFaces.mockResolvedValue(predictions);
+  const { ref, container } = renderRecognition();
+  const video = container.querySelector("video");
+  const canvas = container.querySelector("canvas");
+  Object.defineProperty(video, "videoWidth", { configurable: true, value: 640 });
+  Object.defineProperty(video, "videoHeight", { configurable: true, value: 480 });
+
+  await act(async () => {
+    await ref.current.startFaceRecognition();
+  });
+  fireEvent.loadedMetadata(video);
+
+  expect(canvas.width).toBe(640);
+  expect(canvas.height).toBe(480);
+  const initialLogCount = captureLog.mock.calls.length;
+  for (let frame = 0; frame < 4; frame += 1) {
+    await act(async () => {
+      await requestFrame.mock.lastCall[0]();
+    });
+  }
+  expect(estimateFaces).toHaveBeenCalledTimes(5);
+  expect(captureLog).toHaveBeenCalledTimes(initialLogCount);
+
+  estimateFaces.mockResolvedValueOnce([]);
+  await act(async () => {
+    await requestFrame.mock.lastCall[0]();
+  });
+  expect(captureLog).toHaveBeenCalledTimes(initialLogCount + 1);
+  expect(captureLog).toHaveBeenLastCalledWith(
+    expect.stringContaining("no face found")
+  );
+  act(() => {
+    expect(ref.current.stopFaceRecognition()).toEqual([]);
+  });
+
+  const messages = captureLog.mock.calls.map(([message]) => message);
+  expect(messages).toEqual(expect.arrayContaining([
+    expect.stringContaining("1. Start:"),
+    expect.stringContaining("2. Camera:"),
+    expect.stringContaining("3. Video metadata:"),
+    expect.stringContaining("4. TensorFlow:"),
+    expect.stringContaining("5. Model:"),
+    expect.stringContaining("6. Detection:"),
+    expect.stringContaining("6. Preview:"),
+    expect.stringContaining("7. Stop:"),
+    expect.stringContaining("8. Cleanup:"),
+  ]));
+  for (const args of captureLog.mock.calls) {
+    expect(args).toHaveLength(1);
+    expect(args[0]).toMatch(/^\[FaceCapture:camera\] /);
+    expect(args[0]).not.toMatch(/sensitive-face-payload|12345|23456|34567|45678/);
+  }
+});
+
+test("restart clears old detections before the new session's first estimate completes", async () => {
+  const oldCamera = cameraStream();
+  const newCamera = cameraStream();
+  const oldPredictions = [{ topLeft: [1, 2], bottomRight: [21, 22] }];
+  const estimation = deferred();
+  getUserMedia
+    .mockResolvedValueOnce(oldCamera.stream)
+    .mockResolvedValueOnce(newCamera.stream);
+  estimateFaces
+    .mockResolvedValueOnce(oldPredictions)
+    .mockReturnValueOnce(estimation.promise);
+  const { ref } = renderRecognition();
+  await act(async () => {
+    await ref.current.startFaceRecognition();
+  });
+  act(() => {
+    expect(ref.current.stopFaceRecognition()).toBe(oldPredictions);
+  });
+  context.clearRect.mockClear();
+  context.drawImage.mockClear();
+
+  let restarted;
+  await act(async () => {
+    restarted = ref.current.startFaceRecognition();
+  });
+  expect(estimateFaces).toHaveBeenCalledTimes(2);
+  expect(context.clearRect).toHaveBeenCalledOnce();
+  act(() => {
+    expect(ref.current.stopFaceRecognition()).toBeNull();
+  });
+  await act(async () => {
+    estimation.resolve(oldPredictions);
+    await restarted;
+  });
+
+  expect(context.drawImage).not.toHaveBeenCalled();
+  expect(oldCamera.stop).toHaveBeenCalledOnce();
+  expect(newCamera.stop).toHaveBeenCalledOnce();
+});
+
+test.each(["returns false", "rejects"])(
+  "uses the CPU backend when WebGL %s",
+  async (failure) => {
+    const camera = cameraStream();
+    getUserMedia.mockResolvedValue(camera.stream);
+    if (failure === "returns false") {
+      setBackend.mockResolvedValueOnce(false);
+    } else {
+      setBackend.mockRejectedValueOnce(new Error("WebGL unavailable"));
+    }
+    const { ref } = renderRecognition();
+
+    await act(async () => {
+      await ref.current.startFaceRecognition();
+    });
+
+    expect(setBackend).toHaveBeenNthCalledWith(1, "webgl");
+    expect(setBackend).toHaveBeenNthCalledWith(2, "cpu");
+    expect(ready).toHaveBeenCalledOnce();
+    expect(loadModel).toHaveBeenCalledOnce();
+    expect(estimateFaces).toHaveBeenCalledOnce();
+    expect(captureLog).toHaveBeenCalledWith(
+      expect.stringContaining("CPU backend is ready")
+    );
+  }
+);
+
+test("a later detection failure stops the camera and reports one safe recognition error", async () => {
+  const camera = cameraStream();
+  const dispose = vi.fn();
+  const onRecognitionError = vi.fn();
+  getUserMedia.mockResolvedValue(camera.stream);
+  loadModel.mockResolvedValue({ estimateFaces, dispose });
+  estimateFaces
+    .mockResolvedValueOnce([])
+    .mockRejectedValueOnce(new Error("private-model-error-details"));
+  const { ref, container } = renderRecognition({ onRecognitionError });
+  await act(async () => {
+    await ref.current.startFaceRecognition();
+  });
+  const nextFrame = requestFrame.mock.lastCall[0];
+  requestFrame.mockClear();
+
+  await act(async () => {
+    await expect(nextFrame()).resolves.toBeUndefined();
+  });
+  act(() => {
+    ref.current.stopFaceRecognition();
+  });
+
+  expect(camera.stop).toHaveBeenCalledOnce();
+  expect(dispose).toHaveBeenCalledOnce();
+  expect(container.querySelector("video").srcObject).toBeNull();
+  expect(requestFrame).not.toHaveBeenCalled();
+  expect(cancelFrame).toHaveBeenCalledWith(0);
+  expect(onRecognitionError).toHaveBeenCalledExactlyOnceWith();
+  expect(captureLog.mock.calls.flat().join(" ")).not.toContain(
+    "private-model-error-details"
+  );
 });
 
 test("a late camera result from an earlier run cannot replace a restarted camera", async () => {

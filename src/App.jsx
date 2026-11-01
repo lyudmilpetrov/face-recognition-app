@@ -21,15 +21,25 @@ function App() {
   const finalTranscriptRef = useRef("");
   const [isListening, setIsListening] = useState(false);
 
-  const handleStop = (ref, stopped, setStopped, setInfo) => {
+  const handleStop = async (ref, stopped, setStopped, setInfo) => {
     if (ref.current) {
       if (!stopped) {
+        // Stop keeps the latest canvas preview and completed face detections;
+        // it does not take a fresh photo or compare any image pixels.
         const info = ref.current.stopFaceRecognition();
         setInfo(info);
         setStopped(true);
       } else {
-        ref.current.startFaceRecognition();
+        // A new run must produce a new stopped result before it can be compared.
+        setInfo(null);
         setStopped(false);
+        try {
+          await ref.current.startFaceRecognition();
+        } catch {
+          setStopped(true);
+          console.log("[FaceComparison] Camera restart failed; capture a new frame before comparing.");
+          toast.error("Unable to start face detection. Please check camera permissions and try again.");
+        }
       }
     }
   };
@@ -39,8 +49,16 @@ function App() {
     dispatch(setTheme(newTheme));
   };
 
+  const handleRecognitionError = (setStopped, setInfo) => {
+    setStopped(true);
+    setInfo(null);
+    toast.error("Face detection stopped. Please start recognition again.");
+  };
+
   const compareFaces = async () => {
-    if (!info1 || !info2) {
+    console.log("[FaceComparison] Step 1: Check that both stopped captures contain a detected face.");
+    if (!info1?.length || !info2?.length) {
+      console.log("[FaceComparison] Comparison skipped: a capture is missing or contains no detected faces.");
       toast.error(
         "Finish both detections first, then press Stop Recognition on each video to capture results."
       );
@@ -62,12 +80,16 @@ function App() {
     toast(message, {
       icon: matchPercentage >= 80 ? "✅" : "ℹ️",
     });
+    console.log("[FaceComparison] Step 6: Display the frame-geometry result. This score does not establish identity.");
   };
 
   const comparePredictionsBlaze = (pred1, pred2) => {
     if (!pred1?.length || !pred2?.length) return 0;
 
-    const normalizeBox = (box) => {
+    // This demo compares box geometry in video pixels, not facial identity.
+    // Only the first detection from each stopped frame participates.
+    console.log("[FaceComparison] Step 2: Select the first face box in each capture and calculate its width, height, and center.");
+    const measureBox = (box) => {
       const width = box.bottomRight[0] - box.topLeft[0];
       const height = box.bottomRight[1] - box.topLeft[1];
       const centerX = box.topLeft[0] + width / 2;
@@ -75,9 +97,11 @@ function App() {
       return { width, height, centerX, centerY };
     };
 
-    const box1 = normalizeBox(pred1[0]);
-    const box2 = normalizeBox(pred2[0]);
+    const box1 = measureBox(pred1[0]);
+    const box2 = measureBox(pred2[0]);
 
+    // Matching dimensions yield ratios of 1; different sizes reduce the score.
+    console.log("[FaceComparison] Step 3: Multiply the smaller-to-larger width and height ratios to calculate size similarity.");
     const widthSimilarity = Math.min(
       box1.width / box2.width,
       box2.width / box1.width
@@ -88,6 +112,9 @@ function App() {
     );
     const sizeSimilarity = widthSimilarity * heightSimilarity;
 
+    // Scale center separation by a diagonal made from the larger dimensions.
+    // Coordinates are not normalized to the camera resolution.
+    console.log("[FaceComparison] Step 4: Calculate center distance, divide by the maximum-size box diagonal, and subtract from 1 for position similarity.");
     const distanceX = Math.abs(box1.centerX - box2.centerX);
     const distanceY = Math.abs(box1.centerY - box2.centerY);
     const maxDistance = Math.sqrt(
@@ -98,6 +125,8 @@ function App() {
       1 -
       Math.sqrt(Math.pow(distanceX, 2) + Math.pow(distanceY, 2)) / maxDistance;
 
+    // Preserve the demo's existing cutoff: every score below 80 becomes zero.
+    console.log("[FaceComparison] Step 5: Multiply size similarity by position similarity and 100; report zero when the score is below 80.");
     const overallSimilarity = sizeSimilarity * positionSimilarity * 100;
     if (overallSimilarity < 80) return 0;
     return overallSimilarity;
@@ -108,10 +137,13 @@ function App() {
       if (!ref.current) {
         return;
       }
+      // Expose Stop while startup is pending. Completion of a cancelled startup
+      // must not change the stopped state chosen by the user in the meantime.
+      setStopped(false);
       try {
         await ref.current.startFaceRecognition();
-        setStopped(false);
       } catch {
+        setStopped(true);
         toast.error("Unable to access the camera. Please allow permissions.");
       }
     };
@@ -224,6 +256,11 @@ function App() {
               Mobile-first face comparison with live camera detection and a quick
               voice capture panel for multimodal experimentation.
             </p>
+            <p>
+              Stop each camera to keep its latest canvas preview and latest
+              completed face detections. Comparison uses face-box size and
+              position and does not establish identity.
+            </p>
           </div>
           <button className={`${buttonClasses} w-full sm:w-auto`} onClick={compareFaces}>
             Compare Faces
@@ -247,6 +284,7 @@ function App() {
                 canvasId="canvas1"
                 frameColor="aqua"
                 setInfo={setInfo1}
+                onRecognitionError={() => handleRecognitionError(setStopped1, setInfo1)}
               />
             </div>
           </article>
@@ -267,6 +305,7 @@ function App() {
                 canvasId="canvas2"
                 frameColor="red"
                 setInfo={setInfo2}
+                onRecognitionError={() => handleRecognitionError(setStopped2, setInfo2)}
               />
             </div>
           </article>

@@ -18,6 +18,7 @@
     "@tensorflow/tfjs": "^4.22.0",
     "@tensorflow/tfjs-backend-cpu": "^4.22.0",
     "@tensorflow/tfjs-backend-webgl": "^4.22.0",
+    "onnxruntime-web": "1.24.3",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "react-hot-toast": "^2.6.1",

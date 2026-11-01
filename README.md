@@ -36,6 +36,36 @@ If `npm run dev` or `npm start` reports that `vite` is not recognized, run
 `npm ci --include=dev` from the project root, wait for it to finish successfully,
 then retry. This restores missing or incomplete local development dependencies.
 
+### Following image capture and comparison
+
+Open the browser's DevTools Console and filter by `[FaceCapture:video1]`,
+`[FaceCapture:video2]`, or `[FaceComparison]` to follow the two camera panels and
+their comparison. Capture steps are logged once per lifecycle, with updates when
+the detection state changes, to keep the continuous frame loop readable.
+
+1. Each panel requests permission for the front-facing camera. Video metadata
+   supplies the dimensions used to size its canvas.
+2. TensorFlow selects WebGL, falling back to the CPU if necessary, then loads
+   BlazeFace. The model estimates face boxes from available video frames; the
+   canvas copies the live video and draws the estimated boxes. Inference and drawing
+   happen sequentially, so preview pixels can be newer than the estimated frame.
+   The next estimate is scheduled after the previous one finishes.
+3. **Stop Recognition** releases the camera and preserves the latest canvas
+   preview and latest completed in-memory face boxes. It does not take or export a new photo
+   at the moment of the click. Restarting clears the earlier capture so the next
+   comparison uses results from the new run.
+4. **Compare Faces** uses the first detected box from each stopped panel. It
+   multiplies the smaller-to-larger width ratio by the smaller-to-larger height
+   ratio, then multiplies that size similarity by center-position similarity and
+   100. Position similarity is `1 - center distance / reference diagonal`, where
+   the reference diagonal uses the larger width and larger height of the two
+   boxes. The existing rule converts scores below 80 to zero.
+
+This percentage describes bounding-box geometry, rather than identity confidence:
+the comparison does not inspect facial appearance or image pixels. The new console
+messages describe stages and safe summary values without logging photos,
+coordinates, or raw predictions.
+
 ## Validation
 
 ```sh
